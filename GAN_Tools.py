@@ -52,7 +52,7 @@ def to_device(data, device):
 
 #%%
 ##Define classes for training
-class Generator(nn.Module):
+class GanComponent(nn.Module):
     def __init__(self, n, init_weights_func, nodes_out, dropout_prob):
         super().__init__()
         self.pre_network = nn.Sequential(
@@ -105,60 +105,6 @@ class Generator(nn.Module):
 
     def load_pars(self, path, epoch_num, device):
         self.load_state_dict(load(path+'/pre_generator_pars_'+epoch_num+'.pt', map_location=device))
-
-
-class Critic(nn.Module):
-    def __init__(self, n, init_weights_func, nodes_out, dropout_prob):
-        super().__init__()
-        self.pre_network = nn.Sequential(
-            nn.Linear(n, nodes_out),
-            nn.SELU(),
-            nn.AlphaDropout(p = dropout_prob),
-            )
-        self.pre_network.apply(init_weights_func)
-
-        self.layer_out = nn.Linear(nodes_out, 1)
-        nn.init.kaiming_normal_(self.layer_out.weight, nonlinearity='linear')
-        self.layer_out.bias.data.fill_(0.01)
-
-        self.pre_currentShape = nodes_out
-        self.n_pre_layers = 1
-
-        self.dropout_prob = dropout_prob
-
-    def grow(self, n):
-        new_layer = nn.Linear(self.pre_currentShape, n)
-        nn.init.kaiming_normal_(new_layer.weight, nonlinearity='linear')
-
-        self.pre_network.add_module('grow_layer_'+str(n), new_layer)
-        self.pre_network.add_module('selu_'+str(n), nn.SELU())
-        self.pre_network.add_module('alpha_dropout_'+str(n), nn.AlphaDropout(p = 0.4))
-
-        self.layer_out = nn.Linear(n, 1)
-        nn.init.kaiming_normal_(self.layer_out.weight, nonlinearity='linear')
-        self.layer_out.bias.data.fill_(0.01)
-
-        self.n_pre_layers += 1
-        self.pre_currentShape = n
-
-    def change_dropout(self, prob):
-        self.dropout_prob = prob
-        label = 'torch.nn.modules.dropout.AlphaDropout'
-        for i in range(0, len(self.pre_network)):
-            if type(self.pre_network[i] == label):
-                self.pre_network[i].p = prob
-
-    def forward(self, inp):
-        out_pre = self.pre_network(inp)
-        out = self.layer_out(out_pre)
-        return(out)
-
-    def save_pars(self, path, epoch_num):
-        save(self.state_dict(), path+'/pre_critic_pars_'+epoch_num+'.pt')
-
-    def load_pars(self, path, epoch_num, device):
-        self.load_state_dict(load(path+'/pre_critic_pars_'+epoch_num+'.pt', map_location=device ))
-
 
 
 class Results():
@@ -443,13 +389,13 @@ class Environment():
         random.seed(seed)
         
         #For sim
-        self.generator = Generator(self.n_features, self.init_weights, 50, dropout_prob)
+        self.generator = GanComponent(self.n_features, self.init_weights, 50, dropout_prob)
         self.generator.grow(100)
         self.generator.grow(200)
         if preTrained == True:
             self.generator.load_pars(self.PATH, 'complete_pre', self.device)
         
-        self.critic = Critic(self.n_features, self.init_weights, 200, dropout_prob)
+        self.critic = GanComponent(self.n_features, self.init_weights, 200, dropout_prob)
         self.critic.grow(100)
         self.critic.grow(50)
         if preTrained == True:
@@ -696,190 +642,189 @@ def classification_metrics(path_dat_train, path_dat_val, generator, path_transfo
         
         
         for i_methods in tqdm(range(0,4)):
-            if i_methods == 0:
-                if generator2 is not None:
-                    impute_method = 'ExpandGAN'
-                    col = 'm'
-                    def impute_dat():
-                        n_impute = sum(dat_y == 1) - sum(dat_y == 0)
-                        n_expand = sum(dat_y == 1)
-    
-                        #underrep class
-                        noise_inp = randn(n_impute + n_expand, n_features)
-                        noise_inp = noise_inp.to(device)
-                        to_device(generator, device)
-    
-                        dat_impute = generator(noise_inp)
-                        dat_impute = dat_impute.to('cpu')
-                        dat_impute = pd.DataFrame(dat_impute.detach().numpy())
-    
-                        dat_x_imp = pd.concat([dat_x, dat_impute], join = 'inner')
-                        dat_y_imp = np.concatenate([dat_y, [0]*(n_impute+n_expand)])
-    
-                        #overrep class
-                        noise_inp = randn(n_expand, n_features)
-                        noise_inp = noise_inp.to(device)
-                        to_device(generator2, device)
-    
-                        dat_impute = generator2(noise_inp)
-                        dat_impute = dat_impute.to('cpu')
-                        dat_impute = pd.DataFrame(dat_impute.detach().numpy())
-    
-                        dat_x_imp = pd.concat([dat_x_imp, dat_impute], join = 'inner')
-                        dat_y_imp = np.concatenate([dat_y_imp, [1]*n_expand])
-    
-                        return(dat_x_imp, dat_y_imp)
-    
-                    dat_x_imp, dat_y_imp = impute_dat()
-    
-                else:
-                    continue
-    
-            if i_methods == 1:
-                #GAN
-                impute_method = 'GAN'
-                col = 'b'
-    
+            if generator2 is not None:
+                impute_method = 'ExpandGAN'
+                col = 'm'
                 def impute_dat():
                     n_impute = sum(dat_y == 1) - sum(dat_y == 0)
-    
-                    noise_inp = randn(n_impute, n_features)
+                    n_expand = sum(dat_y == 1)
+
+                    #underrep class
+                    noise_inp = randn(n_impute + n_expand, n_features)
                     noise_inp = noise_inp.to(device)
                     to_device(generator, device)
-    
+
                     dat_impute = generator(noise_inp)
                     dat_impute = dat_impute.to('cpu')
                     dat_impute = pd.DataFrame(dat_impute.detach().numpy())
-    
+
                     dat_x_imp = pd.concat([dat_x, dat_impute], join = 'inner')
-                    dat_y_imp = np.concatenate([dat_y, [0]*n_impute])
+                    dat_y_imp = np.concatenate([dat_y, [0]*(n_impute+n_expand)])
+
+                    #overrep class
+                    noise_inp = randn(n_expand, n_features)
+                    noise_inp = noise_inp.to(device)
+                    to_device(generator2, device)
+
+                    dat_impute = generator2(noise_inp)
+                    dat_impute = dat_impute.to('cpu')
+                    dat_impute = pd.DataFrame(dat_impute.detach().numpy())
+
+                    dat_x_imp = pd.concat([dat_x_imp, dat_impute], join = 'inner')
+                    dat_y_imp = np.concatenate([dat_y_imp, [1]*n_expand])
+
                     return(dat_x_imp, dat_y_imp)
-    
+
                 dat_x_imp, dat_y_imp = impute_dat()
-    
-            if i_methods == 2:
-                impute_method = 'SMOTE'
-                col = 'g'
-    
-                if sum(dat_y == 0) < 6:
-                    k_neighbors = sum(dat_y == 0) -1
-                else:
-                    k_neighbors = 5
-    
-                    def impute_dat():
-                        dat_x_imp, dat_y_imp = SMOTE(k_neighbors = k_neighbors).fit_resample(dat_x, dat_y)
-                        return(dat_x_imp, dat_y_imp)
-    
-                dat_x_imp, dat_y_imp = impute_dat()
-    
-            if i_methods == 3:
-                impute_method = 'RO'
-                col = 'y'
-    
+
+            else:
+                continue
+
+        if i_methods == 1:
+            #GAN
+            impute_method = 'GAN'
+            col = 'b'
+
+            def impute_dat():
+                n_impute = sum(dat_y == 1) - sum(dat_y == 0)
+
+                noise_inp = randn(n_impute, n_features)
+                noise_inp = noise_inp.to(device)
+                to_device(generator, device)
+
+                dat_impute = generator(noise_inp)
+                dat_impute = dat_impute.to('cpu')
+                dat_impute = pd.DataFrame(dat_impute.detach().numpy())
+
+                dat_x_imp = pd.concat([dat_x, dat_impute], join = 'inner')
+                dat_y_imp = np.concatenate([dat_y, [0]*n_impute])
+                return(dat_x_imp, dat_y_imp)
+
+            dat_x_imp, dat_y_imp = impute_dat()
+
+        if i_methods == 2:
+            impute_method = 'SMOTE'
+            col = 'g'
+
+            if sum(dat_y == 0) < 6:
+                k_neighbors = sum(dat_y == 0) -1
+            else:
+                k_neighbors = 5
+
                 def impute_dat():
-                    dat_x_imp, dat_y_imp = RandomOverSampler().fit_resample(dat_x, dat_y)
+                    dat_x_imp, dat_y_imp = SMOTE(k_neighbors = k_neighbors).fit_resample(dat_x, dat_y)
                     return(dat_x_imp, dat_y_imp)
-    
-                dat_x_imp, dat_y_imp = impute_dat()
-    
-            #check
-            print( ' %s : %i samples class_1; %i samples class_2' %(impute_method, sum(dat_y_imp == 0), sum(dat_y_imp == 1)) )
-    
-            #Make classification model
-            """
-            Find optimum hyperparameters
-            Then, instantiate a new classifier with opt_hyps followed by predicition metrics
-                Repeat and take avgs
-            """
+
+            dat_x_imp, dat_y_imp = impute_dat()
+
+        if i_methods == 3:
+            impute_method = 'RO'
+            col = 'y'
+
+            def impute_dat():
+                dat_x_imp, dat_y_imp = RandomOverSampler().fit_resample(dat_x, dat_y)
+                return(dat_x_imp, dat_y_imp)
+
+            dat_x_imp, dat_y_imp = impute_dat()
+
+        #check
+        print( ' %s : %i samples class_1; %i samples class_2' %(impute_method, sum(dat_y_imp == 0), sum(dat_y_imp == 1)) )
+
+        #Make classification model
+        """
+        Find optimum hyperparameters
+        Then, instantiate a new classifier with opt_hyps followed by predicition metrics
+            Repeat and take avgs
+        """
+        if i_classifier == 0:
+            classifier = 'histgradboost'
+            model_val = HistGradientBoostingClassifier()
+            pars = {
+                'learning_rate' : [0.001, 0.01, 0.1, 1, 10],
+                'min_samples_leaf' : [1, 10, 25, 50, 75]
+                }
+        if i_classifier == 1:
+            classifier = 'svm'
+            model_val = SVC()
+            pars = {
+                'C' : [1, 5, 10, 25, 50, 75],
+                'gamma' : [0.1, 0.4, 0.8]
+                }
+        if i_classifier == 2:
+            classifier = 'elasticNet'
+            model_val = ElasticNet()
+            pars = {
+                'alpha' : [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.0, 1.0, 10.0, 100.0],
+                'l1_ratio' : [0, 1, 0.01],
+                'max_iter' : [100000]
+                }
+
+        scorer = make_scorer(roc_auc_score)
+
+        scores_roc = []
+        scores_acc = []
+        scores_interpTpr = []
+
+        mean_fpr = np.linspace(0, 1, 100)
+
+        cv = StratifiedKFold(n_splits = 5, shuffle = True)
+        searcher = GridSearchCV(model_val, pars, scoring = scorer, n_jobs = -1, cv = cv, refit=True).fit(dat_x_imp, dat_y_imp)
+
+        #Due to randomness of model method, build model n times and impute data n times and take avg performance
+        for i2 in range(1, 100):
             if i_classifier == 0:
-                classifier = 'histgradboost'
-                model_val = HistGradientBoostingClassifier()
-                pars = {
-                    'learning_rate' : [0.001, 0.01, 0.1, 1, 10],
-                    'min_samples_leaf' : [1, 10, 25, 50, 75]
-                    }
+                model_val = HistGradientBoostingClassifier(**searcher.best_params_)
             if i_classifier == 1:
-                classifier = 'svm'
-                model_val = SVC()
-                pars = {
-                    'C' : [1, 5, 10, 25, 50, 75],
-                    'gamma' : [0.1, 0.4, 0.8]
-                    }
+                model_val = SVC(**searcher.best_params_)
             if i_classifier == 2:
-                classifier = 'elasticNet'
-                model_val = ElasticNet()
-                pars = {
-                    'alpha' : [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.0, 1.0, 10.0, 100.0],
-                    'l1_ratio' : [0, 1, 0.01],
-                    'max_iter' : [100000]
-                    }
-    
-            scorer = make_scorer(roc_auc_score)
-    
-            scores_roc = []
-            scores_acc = []
-            scores_interpTpr = []
-    
-            mean_fpr = np.linspace(0, 1, 100)
-    
-            cv = StratifiedKFold(n_splits = 5, shuffle = True)
-            searcher = GridSearchCV(model_val, pars, scoring = scorer, n_jobs = -1, cv = cv, refit=True).fit(dat_x_imp, dat_y_imp)
-    
-            #Due to randomness of model method, build model n times and impute data n times and take avg performance
-            for i2 in range(1, 100):
-                if i_classifier == 0:
-                    model_val = HistGradientBoostingClassifier(**searcher.best_params_)
-                if i_classifier == 1:
-                    model_val = SVC(**searcher.best_params_)
-                if i_classifier == 2:
-                    model_val = ElasticNet(**searcher.best_params_)
-                    
-                dat_x_imp, dat_y_imp = impute_dat()
-                model_val = model_val.fit(dat_x_imp, dat_y_imp)
-    
-                preds = model_val.predict(dat_val_x)
-    
-                scores_roc.append(roc_auc_score(dat_val_y, preds))
-                scores_acc.append(accuracy_score(dat_val_y, preds))
-    
-    
-                fpr, tpr, thresholds = roc_curve(dat_val_y, preds)
-    
-                interp_tpr = np.interp(mean_fpr, fpr, tpr)
-                scores_interpTpr.append(interp_tpr)
-    
-            results_entry = pd.DataFrame(np.column_stack(
-                [impute_method, fmean(scores_roc), fmean(scores_acc),
-                 str(searcher.best_estimator_)],
-                ),
-     
+                model_val = ElasticNet(**searcher.best_params_)
                 
-            columns=['impute_method', 'mean_roc_auc', 'mean_accuracy', 'hyp'])
-            results_classification = pd.concat([results_classification, results_entry], join='inner')
-    
-            #roc plot info
-            mean_tpr = np.mean(scores_interpTpr, axis=0)
-            mean_tpr[-1] = 1.0
+            dat_x_imp, dat_y_imp = impute_dat()
+            model_val = model_val.fit(dat_x_imp, dat_y_imp)
+
+            preds = model_val.predict(dat_val_x)
+
+            scores_roc.append(roc_auc_score(dat_val_y, preds))
+            scores_acc.append(accuracy_score(dat_val_y, preds))
 
 
-            dat_plot = pd.DataFrame.from_dict({
-                'mean_fpr' : mean_fpr,
-                'mean_tpr' : mean_tpr,
-                'group' : [impute_method] * len(mean_fpr)
-                })    
-            plot = plot + geom_line(data = dat_plot, mapping = aes(x = 'mean_fpr', y = 'mean_tpr', color = 'group'), size = 1)
-                
-            summary_text.iloc[i_methods, 0] = r"%s (AUC = %0.2f +- %0.2f)" % (impute_method, fmean(scores_roc), stdev(scores_roc))
-            summary_text.iloc[3-i_methods, 1] = i_methods * 0.1
-            summary_text.iloc[i_methods, 2] = impute_method
+            fpr, tpr, thresholds = roc_curve(dat_val_y, preds)
+
+            interp_tpr = np.interp(mean_fpr, fpr, tpr)
+            scores_interpTpr.append(interp_tpr)
+
+        results_entry = pd.DataFrame(np.column_stack(
+            [impute_method, fmean(scores_roc), fmean(scores_acc),
+             str(searcher.best_estimator_)],
+            ),
+ 
             
-    
-    
-        plot = plot + geom_segment(aes(x = 0, xend = 1, y = 0, yend = 1), colour = 'r', linetype = 'dashed', alpha = 0.8, size = 1)
-        plot = plot + labels.ggtitle("Receiver Operating Characteristic: " + classifier) + labs(color = 'Legend') + \
-            theme(legend_position = 'right', legend_direction='vertical') + \
-            geom_text(data = summary_text, mapping = aes(label = 'summary', y = tuple(summary_text['pos']),\
-                                                         x = 0.7, color = tuple(summary_text['col'])))
+        columns=['impute_method', 'mean_roc_auc', 'mean_accuracy', 'hyp'])
+        results_classification = pd.concat([results_classification, results_entry], join='inner')
+
+        #roc plot info
+        mean_tpr = np.mean(scores_interpTpr, axis=0)
+        mean_tpr[-1] = 1.0
+
+
+        dat_plot = pd.DataFrame.from_dict({
+            'mean_fpr' : mean_fpr,
+            'mean_tpr' : mean_tpr,
+            'group' : [impute_method] * len(mean_fpr)
+            })    
+        plot = plot + geom_line(data = dat_plot, mapping = aes(x = 'mean_fpr', y = 'mean_tpr', color = 'group'), size = 1)
+            
+        summary_text.iloc[i_methods, 0] = r"%s (AUC = %0.2f +- %0.2f)" % (impute_method, fmean(scores_roc), stdev(scores_roc))
+        summary_text.iloc[3-i_methods, 1] = i_methods * 0.1
+        summary_text.iloc[i_methods, 2] = impute_method
         
-        plot.save(PATH + '/Results/' + classifier + '.png')
-        results_classification.to_csv(PATH + '/Results/' + classifier + '.csv')
+
+
+    plot = plot + geom_segment(aes(x = 0, xend = 1, y = 0, yend = 1), colour = 'r', linetype = 'dashed', alpha = 0.8, size = 1)
+    plot = plot + labels.ggtitle("Receiver Operating Characteristic: " + classifier) + labs(color = 'Legend') + \
+        theme(legend_position = 'right', legend_direction='vertical') + \
+        geom_text(data = summary_text, mapping = aes(label = 'summary', y = tuple(summary_text['pos']),\
+                                                     x = 0.7, color = tuple(summary_text['col'])))
+    
+    plot.save(PATH + '/Results/' + classifier + '.png')
+    results_classification.to_csv(PATH + '/Results/' + classifier + '.csv')
