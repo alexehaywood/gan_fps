@@ -112,61 +112,22 @@ else:
 
 #%%
 ##First training loop
-if experiment_data == 'microarray':
-    Env_pre.lr = 0.0005
-    n_epochs = 1000
-if experiment_data == 'simulation':
-    Env_pre.lr = 0.001
-    n_epochs = 1000
-if experiment_data == 'metabolomics':
-    Env_pre.lr = 0.001
-    n_epochs = 1000
+#if experiment_data == 'microarray':
+#    Env_pre.lr = 0.0005
+#    n_epochs = 1000
+#if experiment_data == 'simulation':
+#    Env_pre.lr = 0.001
+#    n_epochs = 1000
+#if experiment_data == 'metabolomics':
+#    Env_pre.lr = 0.001
+#    n_epochs = 1000
 
-telapsed_1 = Env_pre.train(n_epochs)
-
-#%%
-##Grow
-#input
-##check for null values
 max_loss = 15
 min_loss = -10
-
-i_losses = Env_pre.results_record.record['n_pre_layers'] == 1.0
-losses = Env_pre.results_record.record['loss_critic'][i_losses]
-ind_check = np.array([np.nan, np.nan])
-
-if losses.gt(max_loss).sum() > 0: #check for null values
-    ind_check[0] = losses.gt(max_loss).argmax()
-if losses.lt(min_loss).sum() > 0:
-    ind_check[1] = losses.lt(min_loss).argmax()
-
-if np.isnan(ind_check).sum() == 2: #no values gt or lt limits
-    ind_null = len(losses)
-else:
-    ind_null = int(ind_check[np.nanargmin(ind_check)]) + 1
     
-losses = losses[:ind_null]
-print('Null value at index {}, epoch {}'.format(ind_null, ind_null * 20))
-
-nEpoch_pars, graph_loss = Env_pre.findApEl(offset = ind_null)
-
-plot = (
-    ggplot(Env_pre.results_record.record.iloc[:ind_null-1])
-    + geom_line(color = 'red', mapping = aes(y = 'loss_critic', x = 'epoch'))
-    + geom_line(color = 'blue', mapping = aes(y = 'loss_gen', x = 'epoch'))
-    + geom_vline(xintercept = nEpoch_pars, size = 0.2)
-    + labels.xlab('Epoch')
-    + labels.ylab('Loss')
-    + scales.ylim(-10, 15)
-)
-
-graph_loss.save(Env_pre.path_results+'/plot_loss_bestFit' + '_loop_1' + '.png')
-plot.save(Env_pre.path_results+'/plot_loss' + '_loop_1' + '.png')
-Env_pre.select_pars(str(nEpoch_pars))
-Env_pre.generator.save_pars(Env_pre.path_pars, 'complete_loop_1')
-
-Env_pre.results_record.save_results(Env_pre.PATH + '/Results')
-
+##First training loop
+telapsed_summary_1 = Env_pre.tuneAndTrain(max_loss, min_loss, preTrained=False)
+Env_pre.structure = [50] #attr showing trained structure (hence layer added after training)
 
 Env_pre.generator.grow(100)
 Env_pre.critic.grow(100)
@@ -174,66 +135,9 @@ Env_pre.critic.grow(100)
 to_device(Env_pre.generator, Env_pre.device)
 to_device(Env_pre.critic, Env_pre.device)
 
-
-
-#%%
 ##Second training loop
-#input
-if experiment_data == 'microarray':
-    Env_pre.lr = 0.00005
-    n_epochs = 7000
-if experiment_data == 'simulation':
-    Env_pre.lr = 0.0001
-    n_epochs = 10000
-if experiment_data == 'metabolomics':
-    Env_pre.lr = 0.00005
-    n_epochs = 17000
-
-#
-
-telapsed_2 = Env_pre.train(n_epochs)
-
-
-#%%
-##Grow
-#input
-##check for null values
-i_losses = Env_pre.results_record.record['n_pre_layers'] == 2.0
-losses = Env_pre.results_record.record['loss_critic'][i_losses]
-ind_check = np.array([np.nan, np.nan])
-
-if losses.gt(max_loss).sum() > 0: #check for null values
-    ind_check[0] = losses.gt(max_loss).argmax()
-if losses.lt(min_loss).sum() > 0:
-    ind_check[1] = losses.lt(min_loss).argmax()
-
-if np.isnan(ind_check).sum() == 2: #no values gt or lt limits
-    ind_null = len(losses)
-else:
-    ind_null = int(ind_check[np.nanargmin(ind_check)]) + 1
-    
-losses = losses[:ind_null]
-print('Null value at index {}, epoch {}'.format(ind_null, ind_null * 20))
-
-nEpoch_pars, graph_loss = Env_pre.findApEl(offset = ind_null)
-
-plot = (
-    ggplot(Env_pre.results_record.record.iloc[:ind_null-1])
-    + geom_line(color = 'red', mapping = aes(y = 'loss_critic', x = 'epoch'))
-    + geom_line(color = 'blue', mapping = aes(y = 'loss_gen', x = 'epoch'))
-    + geom_vline(xintercept = nEpoch_pars, size = 0.2)
-    + labels.xlab('Epoch')
-    + labels.ylab('Loss')
-    + scales.ylim(-10, 15)
-)
-
-graph_loss.save(Env_pre.path_results+'/plot_loss_bestFit' + '_loop_2' + '.png')
-plot.save(Env_pre.path_results+'/plot_loss' + '_loop_2' + '.png')
-Env_pre.select_pars(str(nEpoch_pars))
-Env_pre.generator.save_pars(Env_pre.path_pars, 'complete_loop_2')
-
-Env_pre.results_record.save_results(Env_pre.PATH + '/Results')
-
+telapsed_summary_2 = Env_pre.tuneAndTrain(max_loss, min_loss, preTrained=False)
+Env_pre.structure.append(100)
 
 Env_pre.generator.grow(200)
 Env_pre.critic.grow(50)
@@ -241,76 +145,17 @@ Env_pre.critic.grow(50)
 to_device(Env_pre.generator, Env_pre.device)
 to_device(Env_pre.critic, Env_pre.device)
 
-
-
-#%%
 ##Third training loop
 #input
 Env_pre.iter_critic = 2
 dropout_prob = 0.7
 
-if experiment_data == 'microarray':
-    Env_pre.lr = 0.00001 #0.00005
-    n_epochs = 8000
-if experiment_data == 'simulation':
-    Env_pre.lr = 0.00001
-    n_epochs = 8000
-if experiment_data == 'metabolomics':
-    Env_pre.lr = 0.0005
-    n_epochs = 20000
-
-#
-
 Env_pre.generator.change_dropout(dropout_prob)
 Env_pre.critic.change_dropout(dropout_prob)
 
-telapsed_3 = Env_pre.train(n_epochs)
+telapsed_summary_3 = Env_pre.tuneAndTrain(max_loss, min_loss, i_layers, preTrained=False)
+Env_pre.structure.append(200)
 
-
-#%%
-##Select final generator pars
-#input
-##check for null values
-i_losses = Env_pre.results_record.record['n_pre_layers'] == 3.0
-losses = Env_pre.results_record.record['loss_critic'][i_losses]
-ind_check = np.array([np.nan, np.nan])
-
-if losses.gt(max_loss).sum() > 0: #check for null values
-    ind_check[0] = losses.gt(max_loss).argmax()
-if losses.lt(min_loss).sum() > 0:
-    ind_check[1] = losses.lt(min_loss).argmax()
-
-if np.isnan(ind_check).sum() == 2: #no values gt or lt limits
-    ind_null = len(losses)
-else:
-    ind_null = int(ind_check[np.nanargmin(ind_check)]) + 1
-    
-losses = losses[:ind_null]
-print('Null value at index {}, epoch {}'.format(ind_null, ind_null * 20))
-
-nEpoch_pars, graph_loss = Env_pre.findApEl(offset = ind_null)
-
-plot = (
-    ggplot(Env_pre.results_record.record.iloc[:ind_null-1])
-    + geom_line(color = 'red', mapping = aes(y = 'loss_critic', x = 'epoch'))
-    + geom_line(color = 'blue', mapping = aes(y = 'loss_gen', x = 'epoch'))
-    + geom_vline(xintercept = nEpoch_pars, size = 0.2)
-    + labels.xlab('Epoch')
-    + labels.ylab('Loss')
-    + scales.ylim(-10, 15)
-)
-
-graph_loss.save(Env_pre.path_results+'/plot_loss_bestFit' + '_loop_3' + '.png')
-plot.save(Env_pre.path_results+'/plot_loss' + '_loop_3' + '.png')
-Env_pre.select_pars(str(nEpoch_pars))
-Env_pre.generator.save_pars(Env_pre.path_pars, 'complete_pre')
-
-Env_pre.critic.save_pars(Env_pre.path_pars, 'complete_pre')
-
-Env_pre.results_record.save_results(Env_pre.PATH + '/Results')
-
-
-
-#%%
-dat_telapsed = pd.DataFrame([telapsed_1, telapsed_2, telapsed_3])
+##Save time stats
+dat_telapsed = pd.DataFrame([telapsed_summary_1, telapsed_summary_2, telapsed_summary_3])
 dat_telapsed.to_csv(Env_pre.PATH + '/Results/telapsed.csv')

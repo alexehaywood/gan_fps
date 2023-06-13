@@ -53,17 +53,26 @@ def to_device(data, device):
 #%%
 ##Define classes for training
 class GanComponent(nn.Module):
-    def __init__(self, n, init_weights_func, nodes_out, dropout_prob):
+    def __init__(self, n, init_weights_func, nodes_out, dropout_prob, component):
         super().__init__()
+        self.component = component
         self.pre_network = nn.Sequential(
             nn.Linear(n, nodes_out),
             nn.SELU(),
             nn.AlphaDropout(p = dropout_prob),
             )
+        
+        self.structure = [nodes_out]
 
         self.pre_network.apply(init_weights_func)
 
-        self.layer_out = nn.Linear(nodes_out, n)
+        if self.component=="generator":
+            self.layer_out = nn.Linear(nodes_out, n)
+        elif self.component=="critic":
+            self.layer_out = nn.Linear(nodes_out, 1)
+        else:
+            print("Error")
+            
         nn.init.kaiming_normal_(self.layer_out.weight, nonlinearity='linear')
         self.layer_out.bias.data.fill_(0.01)
 
@@ -81,11 +90,18 @@ class GanComponent(nn.Module):
         self.pre_network.add_module('selu_'+str(n), nn.SELU())
         self.pre_network.add_module('alpha_dropout_'+str(n), nn.AlphaDropout(p = self.dropout_prob))
 
-        self.layer_out = nn.Linear(n, self.n_features_in)
+        if self.component=="generator":
+            self.layer_out = nn.Linear(n, self.n_features_in)
+        elif self.component=="critic":
+            self.layer_out = nn.Linear(n, 1)
+        else:
+            print("Error")
+            
         nn.init.kaiming_normal_(self.layer_out.weight, nonlinearity='linear')
         self.layer_out.bias.data.fill_(0.01)
 
         self.n_pre_layers += 1
+        self.structure.append(n)
         self.pre_currentShape = n
 
     def change_dropout(self, prob):
@@ -101,10 +117,21 @@ class GanComponent(nn.Module):
         return(out)
 
     def save_pars(self, path, epoch_num):
-        save(self.state_dict(), path+'/pre_generator_pars_'+epoch_num+'.pt')
+        if self.component=="generator":
+            save(self.state_dict(), path+'/pre_generator_pars_'+epoch_num+'.pt')
+        elif self.component=="critic":
+            save(self.state_dict(), path+'/pre_critic_pars_'+epoch_num+'.pt')
+        else:
+            print("Error")
 
     def load_pars(self, path, epoch_num, device):
-        self.load_state_dict(load(path+'/pre_generator_pars_'+epoch_num+'.pt', map_location=device))
+        if self.component=="generator":
+            self.load_state_dict(load(path+'/pre_generator_pars_'+epoch_num+'.pt', map_location=device))
+        elif self.component=="critic":
+            self.load_state_dict(load(path+'/pre_critic_pars_'+epoch_num+'.pt', map_location=device))
+        else:
+            print("Error")
+
 
 
 class Results():
@@ -388,25 +415,38 @@ class Environment():
         manual_seed(seed)
         random.seed(seed)
         
-        #For sim
-        self.generator = GanComponent(self.n_features, self.init_weights, 50, dropout_prob)
-        self.generator.grow(100)
-        self.generator.grow(200)
-        if preTrained == True:
-            self.generator.load_pars(self.PATH, 'complete_pre', self.device)
+        flag_loadPars = True
+        if preTrained:
+            id_label = f"{self.generator.n_pre_layers}Retraining"
+        else:
+            if self.generator.n_pre_layers-1 == 0:
+                flag_loadPars = False
+            else:
+                id_label = f"{self.generator.n_pre_layers-1}Pretraining"
         
-        self.critic = GanComponent(self.n_features, self.init_weights, 200, dropout_prob)
-        self.critic.grow(100)
-        self.critic.grow(50)
-        if preTrained == True:
-            self.critic.load_pars(self.PATH, 'complete_pre', self.device)
+        struct_gen = self.generator.structure
+        struct_critic = self.critic.structure
+        self.generator = GanComponent(self.n_features, 
+                                      self.init_weights, 
+                                      struct_gen[0], 
+                                      dropout_prob,
+                                     "generator")
+        self.critic = GanComponent(self.n_features, 
+                                   self.init_weights, 
+                                   struct_critic[0], 
+                                   dropout_prob,
+                                   "critic")
+        
+        for i in range(1, len(struct_gen)):
+            self.generator.grow(struct_gen[i])
+            self.critic.grow(struct_critic[i])
+
+        if flag_loadPars:
+            self.generator.load_pars(self.path_pars, f"complete_loop_{id_label}", self.device)
+            self.critic.load_pars(self.path_pars, f"complete_loop_{id_label}", self.device)   
         
         self.generator.train()
         self.critic.train()
-        
-        #DO NOT change these 2 lines, for some reason changes everything!
-        self.generator.change_dropout(dropout_prob)
-        self.critic.change_dropout(dropout_prob)
         
         to_device(self.generator, self.device)
         to_device(self.critic, self.device)
@@ -526,8 +566,8 @@ class Environment():
             losses = losses[:ind_null]
             print('Null value at index {}'.format(ind_null))
             
-            apex = get_apex(losses.tolist())
-            instab, _ = get_instab(apex)
+            apex = self.get_apex(losses.tolist())
+            instab, _ = self.get_instab(apex)
             
             plot_losses = (
                 ggplot(self.results_record.record.iloc[:int(n_epochs_1/rate_save) + ind_null])
@@ -567,44 +607,115 @@ class Environment():
         lr_2 = lr_2[i]
         
         return(lr_1, n_epochs_1, lr_2, results_tuning_1, results_tuning_2)
+    
+    def tuneAndTrain(self, max_loss, min_loss, dropout_prob, preTrained=True):
+        """
+        ...
+        """
+        lr_1, n_epochs_1, lr_2, results_tuning_1, results_tuning_2 = \
+            self.auto_tune(500, 3, 1000, dropout_prob, 118,
+                                diff_epochs = 500, max_loss_2=max_loss, \
+                                min_loss_2=min_loss, preTrained=preTrained)
+
+        results_tuning_1 = pd.DataFrame.from_dict(results_tuning_1)
+        results_tuning_2 = pd.DataFrame.from_dict(results_tuning_2)
+        
+        if preTrained:
+            id_label = f"{self.generator.n_pre_layers}Retraining"
+        else:
+            id_label = f"{self.generator.n_pre_layers}Pretraining"
+        results_tuning_1.to_csv(self.path_results + f"/results_tuning_1_{id_label}")
+        results_tuning_2.to_csv(self.path_results + f"/results_tuning_2_{id_label}")
+
+        print('Training')
+        self.lr = lr_1
+        telapsed_1 = self.train(n_epochs_1)
+
+        self.lr = lr_2
+        telapsed_2 = self.train(10000-n_epochs_1)
+
+        #save times
+        telapsed_summary = pd.DataFrame([ telapsed_1, telapsed_2 ])
+
+        ##Grow
+        #input
+        ##check for null values
+        i_losses = self.results_record.record['n_pre_layers'] == self.generator.n_pre_layers
+        losses = self.results_record.record['loss_critic'][i_losses]
+        ind_check = np.array([np.nan, np.nan])
+
+        if losses.gt(max_loss).sum() > 0: #check for null values
+            ind_check[0] = losses.gt(max_loss).argmax()
+        if losses.lt(min_loss).sum() > 0:
+            ind_check[1] = losses.lt(min_loss).argmax()
+
+        if np.isnan(ind_check).sum() == 2: #no values gt or lt limits
+            ind_null = len(losses)
+        else:
+            ind_null = int(ind_check[np.nanargmin(ind_check)]) + 1
+
+        losses = losses[:ind_null]
+        print('Null value at index {}, epoch {}'.format(ind_null, ind_null * 20))
+
+        nEpoch_pars, graph_loss = self.findApEl(offset = ind_null)
+
+        plot = (
+            ggplot(self.results_record.record.iloc[:ind_null-1])
+            + geom_line(color = 'red', mapping = aes(y = 'loss_critic', x = 'epoch'))
+            + geom_line(color = 'blue', mapping = aes(y = 'loss_gen', x = 'epoch'))
+            + geom_vline(xintercept = nEpoch_pars, size = 0.2)
+            + labels.xlab('Epoch')
+            + labels.ylab('Loss')
+            + scales.ylim(-10, 15)
+        )
+
+        graph_loss.save(self.path_results+f"/plot_loss_bestFit_loop_{id_label}.png")
+        plot.save(self.path_results+f"/plot_loss_loop_{id_label}.png")
+        self.select_pars(str(nEpoch_pars))
+        self.generator.save_pars(self.path_pars, f"complete_loop_{id_label}")
+        self.critic.save_pars(self.path_pars, f"complete_loop_{id_label}")
+
+        self.results_record.save_results(self.PATH + '/Results')
+
+        return telapsed_summary
 
     
         
-def get_apex(dat_y):
-    apex = []
-    
-    #check if at current point wave is increasing/decreasing
-    if dat_y[0] > dat_y[1]:
-        decreasing = True
-    else:
-        decreasing = False
-    
-    for i in range(1, len(dat_y), 1):
-            
-        if decreasing == True:
-            if dat_y[i-1] < dat_y[i]:
-                apex.append(dat_y[i-1])
-                
-                decreasing = False
-       
-        if decreasing == False:
-            if dat_y[i-1] > dat_y[i]:
-                apex.append(dat_y[i-1])
-                
-                decreasing = True
+    def get_apex(self, dat_y):
+        apex = []
 
-    return(apex)            
+        #check if at current point wave is increasing/decreasing
+        if dat_y[0] > dat_y[1]:
+            decreasing = True
+        else:
+            decreasing = False
 
-def get_instab(dat_y, top_x_diffs = 50):
-    compare_i1 = list( range(0, len(dat_y)-1, 1) )
-    compare_i2 = list( range(1, len(dat_y), 1) )
-    
-    diffs = np.absolute(np.array(dat_y)[compare_i1] - np.array(dat_y)[compare_i2])
-    diffs = np.sort(diffs)[:-top_x_diffs]
-    
-    return(np.mean(diffs), diffs)
-        
-        
+        for i in range(1, len(dat_y), 1):
+
+            if decreasing == True:
+                if dat_y[i-1] < dat_y[i]:
+                    apex.append(dat_y[i-1])
+
+                    decreasing = False
+
+            if decreasing == False:
+                if dat_y[i-1] > dat_y[i]:
+                    apex.append(dat_y[i-1])
+
+                    decreasing = True
+
+        return(apex)            
+
+    def get_instab(self, dat_y, top_x_diffs = 50):
+        compare_i1 = list( range(0, len(dat_y)-1, 1) )
+        compare_i2 = list( range(1, len(dat_y), 1) )
+
+        diffs = np.absolute(np.array(dat_y)[compare_i1] - np.array(dat_y)[compare_i2])
+        diffs = np.sort(diffs)[:-top_x_diffs]
+
+        return(np.mean(diffs), diffs)
+
+
 
 #%%
 ##Validation Function

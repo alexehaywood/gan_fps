@@ -68,6 +68,10 @@ for path_ID in dirs:
         print('WARNING: ENSURE DATA IS COPIED INTO THIS DIRECTORY')
 
 #%%
+
+max_loss = 15
+min_loss = -10
+
 for path_ID in dirs:
 
     Env_under = Environment()
@@ -86,6 +90,8 @@ for path_ID in dirs:
     Env_under.batch_size, Env_over.batch_size = 10, 20
     Env_under.iter_critic, Env_over.iter_critic = 2, 2
     Env_under.beta, Env_over.beta = 13, 13
+    
+    Env_under.structure, Env_over.structure = [50, 100, 200], [50, 100, 200]
 
     dropout_prob = 0.7
 
@@ -152,78 +158,12 @@ for path_ID in dirs:
 
     Env_under.n_training_samples = sum(1 for line in open(Env_under.path_dat)) - 1 #number of records in file (excludes header)
 
-    max_loss = 15
-    min_loss = -10
     if path_ID[-1] != 'e':
-        Env_under.load_pre(dropout_prob, 118)
-        lr_1, n_epochs_1, lr_2, results_tuning_1, results_tuning_2 = Env_under.auto_tune(5000, 3, 5000, dropout_prob, 118, diff_epochs = 500,
-                                                                                         max_loss_2=max_loss, min_loss_2=min_loss)
+        telapsed_summary = Env_under.tuneAndTrain(max_loss, min_loss)
     else:
-        Env_under.load_pre(dropout_prob, 118, preTrained = False)
-        lr_1, n_epochs_1, lr_2, results_tuning_1, results_tuning_2 = Env_under.auto_tune(5000, 3, 5000, dropout_prob, 118, diff_epochs = 500,
-                                                                                         max_loss_2=max_loss, min_loss_2=min_loss, 
-                                                                                         preTrained = False)
-
-
-    results_tuning_1 = pd.DataFrame.from_dict(results_tuning_1)
-    results_tuning_2 = pd.DataFrame.from_dict(results_tuning_2)
-    results_tuning_1.to_csv(Env_under.path_results + '/results_tuning_1_under')
-    results_tuning_2.to_csv(Env_under.path_results + '/results_tuning_2_under')
-
-
-    ##Train with real data
-    print('Training')
-    Env_under.lr = lr_1
-    telapsed_1 = Env_under.train(n_epochs_1)
-
-    Env_under.lr = lr_2
-    telapsed_2 = Env_under.train(10000-n_epochs_1)
-
+        telapsed_summary = Env_under.tuneAndTrain(max_loss, min_loss, preTrained=False)
     #save times
-    telapsed_summary = pd.DataFrame([ telapsed_1, telapsed_2 ])
     telapsed_summary.to_csv(Env_under.path_results + "/time_training.csv")
-
-
-    ##Select final generator pars
-    ##check for null values
-    losses = Env_under.results_record.record['loss_critic']
-    ind_check = np.array([np.nan, np.nan])
-
-    if losses.gt(max_loss).sum() > 0: #check for null values
-        ind_check[0] = losses.gt(max_loss).argmax()
-    if losses.lt(min_loss).sum() > 0:
-        ind_check[1] = losses.lt(min_loss).argmax()
-
-    if np.isnan(ind_check).sum() == 2: #no values gt or lt limits
-        ind_null = len(losses)
-    else:
-        ind_null = int(ind_check[np.nanargmin(ind_check)]) + 1
-
-    losses = losses[:ind_null]
-    print('Null value at index {}, epoch {}'.format(ind_null, ind_null * 20))
-
-    nEpoch_pars, graph_loss = Env_under.findApEl(offset = ind_null)
-
-    plot = (
-        ggplot(Env_under.results_record.record.iloc[:ind_null-1])
-        + geom_line(color = 'red', mapping = aes(y = 'loss_critic', x = 'epoch'))
-        + geom_line(color = 'blue', mapping = aes(y = 'loss_gen', x = 'epoch'))
-        + geom_vline(xintercept = nEpoch_pars, size = 0.2)
-        + labels.xlab('Epoch')
-        + labels.ylab('Loss')
-        + scales.ylim(-10, 15)
-    )
-
-    graph_loss.save(Env_under.path_results+'/plot_loss_bestFit' + '_retrain' + '.png')
-    plot.save(Env_under.path_results+'/plot_loss' + '_retrain' + '.png')
-    Env_under.select_pars(str(nEpoch_pars))
-    Env_under.generator.save_pars(Env_under.path_pars, 'complete_retrain')
-
-    Env_under.results_record.save_results(Env_under.PATH + path_ID + '/Results')
-  
-
-
-
 
     ################################################################################
     ##RE-training loop
@@ -246,85 +186,20 @@ for path_ID in dirs:
 
     Env_over.n_training_samples = sum(1 for line in open(Env_under.path_dat)) - 1 #number of records in file (excludes header)
 
-
-    max_loss = 15
-    min_loss = -10
     if path_ID[-1] != 'e':
-        Env_over.load_pre(dropout_prob, 119)
-        lr_1, n_epochs_1, lr_2, results_tuning_1, results_tuning_2 = Env_over.auto_tune(5000, 3, 5000, dropout_prob, 118, diff_epochs = 500,
-                                                                                         max_loss_2=max_loss, min_loss_2=min_loss)
+        telapsed_summary = Env_under.tuneAndTrain(max_loss, min_loss)
     else:
-        Env_over.load_pre(dropout_prob, 119, preTrained = False)
-        lr_1, n_epochs_1, lr_2, results_tuning_1, results_tuning_2 = Env_over.auto_tune(5000, 3, 5000, dropout_prob, 118, diff_epochs = 500,
-                                                                                         max_loss_2=max_loss, min_loss_2=min_loss, 
-                                                                                         preTrained = False)
-
-    results_tuning_1 = pd.DataFrame.from_dict(results_tuning_1)
-    results_tuning_2 = pd.DataFrame.from_dict(results_tuning_2)
-    results_tuning_1.to_csv(Env_over.path_results + '/results_tuning_1_under')
-    results_tuning_2.to_csv(Env_over.path_results + '/results_tuning_2_under')
-
-
-    ##Train with real data
-    print('Training')
-    Env_over.lr = lr_1
-    telapsed_1 = Env_over.train(n_epochs_1)
-
-    Env_over.lr = lr_2
-    telapsed_2 = Env_over.train(10000-n_epochs_1)
-
+        telapsed_summary = Env_under.tuneAndTrain(max_loss, min_loss, preTrained=False)
     #save times
-    telapsed_summary = pd.DataFrame([ telapsed_1, telapsed_2 ])
-    telapsed_summary.to_csv(Env_over.path_results + "/time_training.csv")
+    telapsed_summary.to_csv(Env_under.path_results + "/time_training.csv")
 
-
-    ##Select final generator pars
-    losses = Env_over.results_record.record['loss_critic']
-    ind_check = np.array([np.nan, np.nan])
-
-    if losses.gt(max_loss).sum() > 0: #check for null values
-        ind_check[0] = losses.gt(max_loss).argmax()
-    if losses.lt(min_loss).sum() > 0:
-        ind_check[1] = losses.lt(min_loss).argmax()
-
-    if np.isnan(ind_check).sum() == 2: #no values gt or lt limits
-        ind_null = len(losses)
-    else:
-        ind_null = int(ind_check[np.nanargmin(ind_check)]) + 1
-
-    losses = losses[:ind_null]
-    print('Null value at index {}, epoch {}'.format(ind_null, ind_null * 20))
-
-    nEpoch_pars, graph_loss = Env_over.findApEl(offset = ind_null)
-
-    plot = (
-        ggplot(Env_over.results_record.record.iloc[:ind_null-1])
-        + geom_line(color = 'red', mapping = aes(y = 'loss_critic', x = 'epoch'))
-        + geom_line(color = 'blue', mapping = aes(y = 'loss_gen', x = 'epoch'))
-        + geom_vline(xintercept = nEpoch_pars, size = 0.2)
-        + labels.xlab('Epoch')
-        + labels.ylab('Loss')
-        + scales.ylim(-10, 15)
-    )
-
-
-    graph_loss.save(Env_over.path_results+'/plot_loss_bestFit' + '_retrain' + '.png')
-    plot.save(Env_over.path_results+'/plot_loss' + '_retrain' + '.png')
-    Env_over.select_pars(str(nEpoch_pars))
-    Env_over.generator.save_pars(Env_over.path_pars, 'complete_retrain')
-
-    Env_over.results_record.save_results(Env_over.PATH + path_ID + '/Results')
-
-   
-
-
-
+    #############################################################################################################
     #Load underrep GAN for validation
     pre_generator = Generator(Env_under.n_features, Env_under.init_weights, 50, dropout_prob)
     pre_generator.grow(100)
     pre_generator.grow(200)
 
-    pre_generator.load_pars(Env_under.path_pars, 'complete_retrain', Env_under.device)
+    pre_generator.load_pars(Env_under.path_pars, f"{pre_generator.n_pre_layers}Retraining", Env_under.device)
     pre_generator.change_dropout(dropout_prob)
 
     pre_generator.eval()
@@ -336,7 +211,7 @@ for path_ID in dirs:
     pre_generator2.grow(100)
     pre_generator2.grow(200)
 
-    pre_generator2.load_pars(Env_over.path_pars, 'complete_retrain', Env_over.device)
+    pre_generator2.load_pars(Env_over.path_pars, f"{pre_generator2.n_pre_layers}Retraining", Env_over.device)
     pre_generator2.change_dropout(dropout_prob)
 
     pre_generator2.eval()

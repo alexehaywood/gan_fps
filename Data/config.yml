@@ -1,0 +1,31 @@
+#YAML
+PATH: !!str "."
+experiment_data: !!str "microarray"
+random_seed: 117
+
+func_optim: !!str "optim.SGD"
+n_features: !!int 135 #218
+alpha: !!int 0
+beta: !!int 13
+batch_size: !!int 30
+iter_critic: !!int 4
+dropout_prob: !!float 0.5
+
+data_prep:
+    microarray: !!int 2
+    simulation: !!int 0
+    metabolomics: !!int 2
+    
+gen_structure: [50, 100, 200]
+critic_structure: [200, 100, 50]
+
+max_epochs_1: !!int 500
+max_loss_1: !!float 3
+n_epochs_2: !!int 1000
+lr_1: [0.0005, 0.0001, 0.001]
+lr_2: [0.00001, 0.00005, 0.0001] 
+rate_save: !!int 20 
+diff_epochs: !!int 500
+max_loss_2: !!float 15
+min_loss_2: !!float -10
+alpha_instab: !!float 3
