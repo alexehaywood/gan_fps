@@ -193,10 +193,10 @@ class Results():
 class Environment():
     def __init__(self, results_record=None, generator=None, critic=None,
           batch_size=None, path_dat=None, n_features=None, iter_critic=None, lr=None, alpha=None, func_optim=None, device=None, 
-          transformer=None, path_results=None, beta=None, n_training_samples=None, path_pars=None, PATH=None):
+          transformer=None, path_results=None, beta=None, n_training_samples=None, path_pars=None, PATH=None, tune_params=None, path_prePars=None):
         """
         """
-        self.results_record, self.generator, self.critic, self.batch_size, self.path_dat, self.n_features, self.iter_critic, self.lr, self.alpha, self.func_optim, self.device, self.transformer, self.path_results, self.beta, self.n_training_samples, self.path_pars, self.PATH = results_record, generator, critic, batch_size, path_dat, n_features, iter_critic, lr, alpha, func_optim, device, transformer, path_results, beta, n_training_samples, path_pars, PATH
+        self.results_record, self.generator, self.critic, self.batch_size, self.path_dat, self.n_features, self.iter_critic, self.lr, self.alpha, self.func_optim, self.device, self.transformer, self.path_results, self.beta, self.n_training_samples, self.path_pars, self.PATH, self.tune_params, self.path_prePars = results_record, generator, critic, batch_size, path_dat, n_features, iter_critic, lr, alpha, func_optim, device, transformer, path_results, beta, n_training_samples, path_pars, PATH, tune_params, path_prePars
     
         def init_weights(net):
             if type(net) == nn.Linear:
@@ -410,14 +410,14 @@ class Environment():
                 except Exception as e:
                     print('Failed to delete %s. Reason: %s' % (file_path, e))
                     
-    def load_pre(self, dropout_prob, seed, preTrained = True):
+    def load_pre(self, dropout_prob, seed, preTrained = True, path_prePars = None):
         np.random.seed(seed)
         manual_seed(seed)
         random.seed(seed)
         
         flag_loadPars = True
         if preTrained:
-            id_label = f"{self.generator.n_pre_layers}Retraining"
+            id_label = f"{self.generator.n_pre_layers}Pretraining"
         else:
             if self.generator.n_pre_layers-1 == 0:
                 flag_loadPars = False
@@ -444,11 +444,15 @@ class Environment():
             self.critic.grow(struct_critic[i])
 
         if flag_loadPars:
-            self.generator.load_pars(self.path_pars, f"complete_loop_{id_label}", self.device)
-            self.critic.load_pars(self.path_pars, f"complete_loop_{id_label}", self.device)   
             if not preTrained:
+                self.generator.load_pars(self.path_pars, f"complete_loop_{id_label}", self.device)
+                self.critic.load_pars(self.path_pars, f"complete_loop_{id_label}", self.device)   
+                
                 self.generator.grow(struct_gen[-1])
                 self.critic.grow(struct_critic[-1])
+            else:
+                self.generator.load_pars(path_prePars, f"complete_loop_{id_label}", self.device)
+                self.critic.load_pars(path_prePars, f"complete_loop_{id_label}", self.device)   
         
         self.generator.train()
         self.critic.train()
@@ -458,7 +462,7 @@ class Environment():
         
         
     def auto_tune(self, max_epochs_1, max_loss_1, n_epochs_2, dropout_prob, seed, 
-                  lr_1 = [0.0005, 0.0001, 0.001], lr_2 = [0.00001, 0.00005, 0.0001],
+                  lr_1, lr_2,
                   rate_save = 20, diff_epochs = 500, max_loss_2 = 15, min_loss_2 = -10,
                   alpha_instab = 3, preTrained = True):
         results_tuning_1 = {
@@ -486,7 +490,7 @@ class Environment():
         final_losses = []
         for i in range(0, len(lr_1), 1):
             lr = lr_1[i]
-            self.load_pre(dropout_prob, 118, preTrained = preTrained)
+            self.load_pre(dropout_prob, 118, preTrained = preTrained, path_prePars=self.path_prePars)
             self.results_record = Results(path = self.path_results, saved_results = False)
             
             iterator_tqdm = tqdm(range(100, max_epochs_1 + 100, 100), desc = 'lr_1 %i out of %i' %  (i+1, len(lr_1)) )
@@ -542,7 +546,7 @@ class Environment():
             lr = lr_2[i]
             print( 'lr_2 %i out of %i' %  (i+1, len(lr_2)) )
             
-            self.load_pre(dropout_prob, 118, preTrained = preTrained)
+            self.load_pre(dropout_prob, 118, preTrained = preTrained, path_prePars=self.path_prePars)
             self.results_record = Results(path = self.path_results, saved_results = False)
 
             #1st round of training
@@ -617,14 +621,15 @@ class Environment():
         
         return(lr_1, n_epochs_1, lr_2, results_tuning_1, results_tuning_2)
     
-    def tuneAndTrain(self, max_loss, min_loss, dropout_prob, preTrained=True):
+    def tuneAndTrain(self, preTrained=True):
         """
         ...
         """
+        max_loss = self.tune_params["max_loss_2"] 
+        min_loss = self.tune_params["min_loss_2"]
+        
         lr_1, n_epochs_1, lr_2, results_tuning_1, results_tuning_2 = \
-            self.auto_tune(500, 3, 1000, dropout_prob, 118,
-                                diff_epochs = 500, max_loss_2=max_loss, \
-                                min_loss_2=min_loss, preTrained=preTrained)
+            self.auto_tune(**self.tune_params, preTrained=preTrained)
 
         results_tuning_1 = pd.DataFrame.from_dict(results_tuning_1)
         results_tuning_2 = pd.DataFrame.from_dict(results_tuning_2)
