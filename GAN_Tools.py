@@ -436,14 +436,19 @@ class Environment():
                                    struct_critic[0], 
                                    dropout_prob,
                                    "critic")
-        
-        for i in range(1, len(struct_gen)):
+        range_upper = len(struct_gen)
+        if not preTrained:
+            range_upper-=1
+        for i in range(1, range_upper):
             self.generator.grow(struct_gen[i])
             self.critic.grow(struct_critic[i])
 
         if flag_loadPars:
             self.generator.load_pars(self.path_pars, f"complete_loop_{id_label}", self.device)
             self.critic.load_pars(self.path_pars, f"complete_loop_{id_label}", self.device)   
+            if not preTrained:
+                self.generator.grow(struct_gen[-1])
+                self.critic.grow(struct_critic[-1])
         
         self.generator.train()
         self.critic.train()
@@ -567,7 +572,11 @@ class Environment():
             print('Null value at index {}'.format(ind_null))
             
             apex = self.get_apex(losses.tolist())
-            instab, _ = self.get_instab(apex)
+            if len(apex)<50:
+                top_x_diffs=len(apex)
+            else:
+                top_x_diffs=50
+            instab, _ = self.get_instab(apex, top_x_diffs)
             
             plot_losses = (
                 ggplot(self.results_record.record.iloc[:int(n_epochs_1/rate_save) + ind_null])
@@ -624,8 +633,8 @@ class Environment():
             id_label = f"{self.generator.n_pre_layers}Retraining"
         else:
             id_label = f"{self.generator.n_pre_layers}Pretraining"
-        results_tuning_1.to_csv(self.path_results + f"/results_tuning_1_{id_label}")
-        results_tuning_2.to_csv(self.path_results + f"/results_tuning_2_{id_label}")
+        results_tuning_1.to_csv(self.path_results + f"/results_tuning_1_{id_label}.csv")
+        results_tuning_2.to_csv(self.path_results + f"/results_tuning_2_{id_label}csv")
 
         print('Training')
         self.lr = lr_1
@@ -711,7 +720,7 @@ class Environment():
         compare_i2 = list( range(1, len(dat_y), 1) )
 
         diffs = np.absolute(np.array(dat_y)[compare_i1] - np.array(dat_y)[compare_i2])
-        diffs = np.sort(diffs)[:-top_x_diffs]
+        diffs = np.sort(diffs)[-top_x_diffs:]
 
         return(np.mean(diffs), diffs)
 
