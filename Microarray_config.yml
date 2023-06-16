@@ -2,6 +2,7 @@
 PATH: !!str "./Microarray"
 experiment_data: !!str "microarray"
 random_seed: 117
+train_pre: False
 
 pretraining:
     func_optim: !!str "SGD" #from torch.optim
@@ -51,11 +52,11 @@ retraining: #[under, over]
 
     max_epochs_1: [500, 500]
     max_loss_1: [3, 3]
-    n_epochs_2: [1000, 1000]
-    lr_1: [[0.0005, 0.0001, 0.001], [0.0005, 0.0001, 0.001]]
-    lr_2: [[0.00001, 0.00005, 0.0001], [0.00001, 0.00005, 0.0001]]
-    rate_save: [20, 20] 
+    n_epochs_2: [5000, 5000]
+    lr_1: [[0.0005, 0.0001], [0.0005, 0.0001]] #[0.0005, 0.0001, 0.001]
+    lr_2: [[0.00001, 0.00005], [0.00001, 0.00005]]
+    rate_save: [10, 10] #20, 20 
     diff_epochs: [500, 500]
     max_loss_2: [15, 15]
-    min_loss_2: [-10, -10]
+    min_loss_2: [-15, -15]
     alpha_instab: [3, 3]

@@ -501,11 +501,15 @@ class Environment():
                 losses = self.results_record.record['loss_critic']
                 
                 if losses.iloc[-1] < max_loss_1:
-                    ind_final = losses.lt(max_loss_1).argmax() -1
-                
-                    loss_final = losses.iloc[ind_final]
-                    epoch_final = self.results_record.record['epoch'].iloc[ind_final]
-                
+                    if losses.iloc[0] < max_loss_1:
+                        loss_final = losses.iloc[0]
+                        epoch_final = 0
+                    else:
+                        ind_final = losses.lt(max_loss_1).argmax() -1
+
+                        loss_final = losses.iloc[ind_final]
+                        epoch_final = self.results_record.record['epoch'].iloc[ind_final]
+
                     print('Final loss reached: {}'.format(loss_final))
                     break
                 
@@ -550,8 +554,11 @@ class Environment():
             self.results_record = Results(path = self.path_results, saved_results = False)
 
             #1st round of training
-            self.lr = lr_1    
-            telapsed_1 = self.train(n_epochs_1)
+            if n_epochs_1 != 0:
+                self.lr = lr_1    
+                telapsed_1 = self.train(n_epochs_1)
+            else:
+                telapsed_1 = pd.NA
             
             #2nd round of training
             self.lr = lr
@@ -751,7 +758,7 @@ def classification_metrics(path_dat_train, path_dat_val, generator, path_transfo
     dat_val_x = dat_val_x.iloc[:, 1:len(dat_val_x.columns)+1]
     dat_val_x = pd.DataFrame(transformer.transform(dat_val_x))
 
-    for i_classifier in range(0,2):
+    for i_classifier in range(0,3):
         results_classification = pd.DataFrame(None,
             columns=['impute_method', 'mean_roc_auc', 'mean_accuracy', 'hyp'])
 
