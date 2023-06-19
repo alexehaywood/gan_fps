@@ -15,9 +15,15 @@ from plotnine import ggplot, aes, geom_line, geom_vline, labels, scales
 import joblib
 import yaml
 
-with open("./microarray_config.yml", "r") as file:
+#config_file = "./Microarray_config.yml"
+config_file = "./Simulation_config.yml"
+with open(config_file, "r") as file:
     config = yaml.safe_load(file)
-    
+
+def prepare_dat(path_dir, file_name, n_cols_rem):
+    dat_temp = pd.read_csv(path_dir + '/' + file_name)
+    dat_temp = dat_temp.iloc[:, n_cols_rem:]
+    dat_temp.to_csv(path_dir + '/' + file_name[:-4] + '_inp.csv', index = False)
 ###############################################################################
 if config["train_pre"]:
     config_pre = config["pretraining"]
@@ -52,16 +58,16 @@ if config["train_pre"]:
     Env_pre.PATH = PATH
 
     Env_pre.tune_params = dict(
-        max_epochs_1=config_pre["max_epochs_1"], 
-        max_loss_1=config_pre["max_loss_1"], 
-        n_epochs_2=config_pre["n_epochs_2"], 
-        dropout_prob=config_pre["dropout_prob"], 
-        seed=config_pre["random_seed"], 
+        max_epochs_1=config_pre["max_epochs_1"],
+        max_loss_1=config_pre["max_loss_1"],
+        n_epochs_2=config_pre["n_epochs_2"],
+        dropout_prob=config_pre["dropout_prob"],
+        seed=config["random_seed"],
         lr_1 = config_pre["lr_1"],
-        lr_2 = config_pre["lr_2"],              
-        rate_save = config_pre["rate_save"], 
-        diff_epochs = config_pre["diff_epochs"], 
-        max_loss_2 = config_pre["max_loss_2"], 
+        lr_2 = config_pre["lr_2"],
+        rate_save = config_pre["rate_save"],
+        diff_epochs = config_pre["diff_epochs"],
+        max_loss_2 = config_pre["max_loss_2"],
         min_loss_2 = config_pre["min_loss_2"],
         alpha_instab = config_pre["alpha_instab"],
     )
@@ -84,14 +90,9 @@ if config["train_pre"]:
 
     #%%
     ##remove IDs if real data
-    def prepare_dat(path_dir, file_name, n_cols_rem):
-        if not exists(path_dir + '/' + file_name[:-4] + '_inp.csv'):
-            dat_temp = pd.read_csv(path_dir + '/' + file_name)
-            dat_temp = dat_temp.iloc[:, n_cols_rem:]
-            dat_temp.to_csv(path_dir + '/' + file_name[:-4] + '_inp.csv', index = False)
 
     #remove ID and label
-    prepare_dat(PATH + '/Data', 'dat_ext.csv', config_pre["data_prep"][experiment_data])    
+    prepare_dat(PATH + '/Data', 'dat_ext.csv', config_pre["data_prep"][experiment_data])
 
     #%%
     ##Train pre_GAN on external data
@@ -109,14 +110,14 @@ if config["train_pre"]:
 
     Env_pre.n_training_samples = sum(1 for line in open(Env_pre.path_dat)) - 1 #number of records in file (excludes header)
 
-    Env_pre.critic = GanComponent(Env_pre.n_features, 
-                                  Env_pre.init_weights, 
-                                  critic_struct[0], 
+    Env_pre.critic = GanComponent(Env_pre.n_features,
+                                  Env_pre.init_weights,
+                                  critic_struct[0],
                                   dropout_prob,
                                   "critic")
-    Env_pre.generator = GanComponent(Env_pre.n_features, 
-                                     Env_pre.init_weights, 
-                                     gen_struct[0], 
+    Env_pre.generator = GanComponent(Env_pre.n_features,
+                                     Env_pre.init_weights,
+                                     gen_struct[0],
                                      dropout_prob,
                                      "generator")
     Env_pre.results_record = Results(path = Env_pre.path_results, saved_results = False)
@@ -179,6 +180,7 @@ if config["train_pre"]:
     dat_telapsed = pd.concat([telapsed_summary_1, telapsed_summary_2, telapsed_summary_3], axis=1)
     dat_telapsed.to_csv(Env_pre.PATH + '/Results/telapsed.csv')
 
+
 ##########################################################################
 
 #input##########################
@@ -191,25 +193,25 @@ experiment_data = config["experiment_data"]
 #%%
 ################################
 ##Check dir structure
-
 if experiment_data == 'metabolomics':
     dirs = [
         '/1a', '/1b', '/1c'
         ]
 else:
     dirs = [
-        '/1a', '/1b', '/1c',
-        '/2a', '/2b', '/2c',
-        '/3a', '/3b', '/3c',
-        '/4a', '/4b', '/4c',
-        '/5a', '/5b', '/5c',
+        #'/1a', '/1b', '/1c',
+        #'/2a', '/2b', '/2c',
+        #'/3a', '/3b', '/3c',
+        #'/4a', '/4b', '/4c',
+        #'/5a',
+        '/5b', '/5c',
         '/6a', '/6b', '/6c',
         '/7a', '/7b', '/7c',
         '/8a', '/8b', '/8c',
         '/9a', '/9b', '/9c',
-        '/1-Compare', '/2-Compare', '/3-Compare',
-        '/4-Compare', '/5-Compare', '/6-Compare', 
-        '/7-Compare', '/8-Compare', '/9-Compare'
+        #'/1-Compare', '/2-Compare', '/3-Compare',
+        #'/4-Compare', '/5-Compare', '/6-Compare',
+        #'/7-Compare', '/8-Compare', '/9-Compare'
         ]
 
 for path_ID in dirs:
@@ -247,7 +249,7 @@ for path_ID in dirs:
     Env_under.device, Env_over.device = get_default_device(), get_default_device()
     Env_under.PATH, Env_over.PATH = PATH, PATH
     Env_under.path_prePars, Env_over.path_prePars = config_re["path_prePars"], config_re["path_prePars"]
-    
+
     ##Input ################################
     Env_under.n_features, Env_over.n_features = config_re["n_features"][0], config_re["n_features"][0]
     Env_under.func_optim, Env_over.func_optim = func_optim_under, func_optim_over
@@ -255,7 +257,7 @@ for path_ID in dirs:
     Env_under.batch_size, Env_over.batch_size = config_re["batch_size"][0], config_re["batch_size"][1]
     Env_under.iter_critic, Env_over.iter_critic = config_re["iter_critic"][0], config_re["iter_critic"][1]
     Env_under.beta, Env_over.beta = config_re["beta"][0], config_re["beta"][1]
-    
+
     dropout_prob = config_re["dropout_prob"][0]
 
     if path_ID[-1] == 'a':
@@ -269,42 +271,37 @@ for path_ID in dirs:
     else:
         print('error')
         break
-        
+
     Env_under.tune_params = dict(
-        max_epochs_1=config_re["max_epochs_1"][0], 
-        max_loss_1=config_re["max_loss_1"][0], 
-        n_epochs_2=config_re["n_epochs_2"][0], 
-        dropout_prob=config_re["dropout_prob"][0], 
-        seed=config["random_seed"], 
+        max_epochs_1=config_re["max_epochs_1"][0],
+        max_loss_1=config_re["max_loss_1"][0],
+        n_epochs_2=config_re["n_epochs_2"][0],
+        dropout_prob=config_re["dropout_prob"][0],
+        seed=config["random_seed"],
         lr_1 = config_re["lr_1"][0],
-        lr_2 = config_re["lr_2"][0],              
-        rate_save = config_re["rate_save"][0], 
-        diff_epochs = config_re["diff_epochs"][0], 
-        max_loss_2 = config_re["max_loss_2"][0], 
+        lr_2 = config_re["lr_2"][0],
+        rate_save = config_re["rate_save"][0],
+        diff_epochs = config_re["diff_epochs"][0],
+        max_loss_2 = config_re["max_loss_2"][0],
         min_loss_2 = config_re["min_loss_2"][0],
         alpha_instab = config_re["alpha_instab"][0],
     )
     Env_over.tune_params = dict(
-        max_epochs_1=config_re["max_epochs_1"][1], 
-        max_loss_1=config_re["max_loss_1"][1], 
-        n_epochs_2=config_re["n_epochs_2"][1], 
-        dropout_prob=config_re["dropout_prob"][1], 
-        seed=config["random_seed"], 
+        max_epochs_1=config_re["max_epochs_1"][1],
+        max_loss_1=config_re["max_loss_1"][1],
+        n_epochs_2=config_re["n_epochs_2"][1],
+        dropout_prob=config_re["dropout_prob"][1],
+        seed=config["random_seed"],
         lr_1 = config_re["lr_1"][1],
-        lr_2 = config_re["lr_2"][1],              
-        rate_save = config_re["rate_save"][1], 
-        diff_epochs = config_re["diff_epochs"][1], 
-        max_loss_2 = config_re["max_loss_2"][1], 
+        lr_2 = config_re["lr_2"][1],
+        rate_save = config_re["rate_save"][1],
+        diff_epochs = config_re["diff_epochs"][1],
+        max_loss_2 = config_re["max_loss_2"][1],
         min_loss_2 = config_re["min_loss_2"][1],
         alpha_instab = config_re["alpha_instab"][1],
     )
     ######################################################
     ##remove IDs and label
-    def prepare_dat(path_dir, file_name, n_cols_rem):
-        dat_temp = pd.read_csv(path_dir + '/' + file_name)
-        dat_temp = dat_temp.iloc[:, n_cols_rem:]
-        dat_temp.to_csv(path_dir + '/' + file_name[:-4] + '_inp.csv', index = False)
-
     if experiment_data == 'microarray':
         prepare_dat(PATH + path_ID + '/Data', 'dat_real_class1.csv', 2)
         prepare_dat(PATH + path_ID + '/Data', 'dat_real_combo.csv', 2)
@@ -325,7 +322,7 @@ for path_ID in dirs:
     Env_under.path_dat = PATH + path_ID + '/Data/dat_real_combo_inp.csv'
     Env_under.path_results = PATH + path_ID + '/Results/Main_Results/underrep'
     Env_under.path_pars = Env_under.path_results + '/Saved_Pars'
-    
+
     Env_under.results_record = Results(path = Env_under.path_results, saved_results = False)
 
     ##transformer based on all data (Combo), due to limited available
@@ -338,31 +335,33 @@ for path_ID in dirs:
         Env_under.path_dat = PATH + path_ID + '/Data/dat_real_class1.csv'
 
     Env_under.n_training_samples = sum(1 for line in open(Env_under.path_dat)) - 1 #number of records in file (excludes header)
-    
-    Env_under.generator = GanComponent(Env_under.n_features, 
-                              Env_under.init_weights, 
-                              config_re["gen_structure"][0][0], 
-                              dropout_prob,
-                              "generator")
-    Env_under.critic = GanComponent(Env_under.n_features, 
-                              Env_under.init_weights, 
-                              config_re["critic_structure"][0][0], 
-                              dropout_prob,
-                              "critic")
-    Env_under.generator.grow(config_re["gen_structure"][0][1])
-    Env_under.generator.grow(config_re["gen_structure"][0][2])
-    
-    Env_under.critic.grow(config_re["critic_structure"][0][1])
-    Env_under.critic.grow(config_re["critic_structure"][0][2])
-    
-    if path_ID[-1] != 'e':
-        telapsed_summary = Env_under.tuneAndTrain()
-    else:
-        telapsed_summary = Env_under.tuneAndTrain(preTrained=False)
-    #save times
-    telapsed_summary.to_csv(Env_under.path_results + "/time_training.csv")
 
-    ################################################################################
+    if config["train_main"]:
+
+        Env_under.generator = GanComponent(Env_under.n_features,
+                                  Env_under.init_weights,
+                                  config_re["gen_structure"][0][0],
+                                  dropout_prob,
+                                  "generator")
+        Env_under.critic = GanComponent(Env_under.n_features,
+                                  Env_under.init_weights,
+                                  config_re["critic_structure"][0][0],
+                                  dropout_prob,
+                                  "critic")
+        Env_under.generator.grow(config_re["gen_structure"][0][1])
+        Env_under.generator.grow(config_re["gen_structure"][0][2])
+
+        Env_under.critic.grow(config_re["critic_structure"][0][1])
+        Env_under.critic.grow(config_re["critic_structure"][0][2])
+
+        if path_ID[-1] != 'e':
+            telapsed_summary = Env_under.tuneAndTrain()
+        else:
+            telapsed_summary = Env_under.tuneAndTrain(preTrained=False)
+        #save times
+        telapsed_summary.to_csv(Env_under.path_results + "/time_training.csv")
+
+        ################################################################################
     ##OVER RE-training loop
     ##Prepare data
     if experiment_data == 'simulation':
@@ -381,95 +380,100 @@ for path_ID in dirs:
     Env_over.transformer = joblib.load(Env_under.path_results + '/real_transformer.pkl')
 
     Env_over.n_training_samples = sum(1 for line in open(Env_under.path_dat)) - 1 #number of records in file (excludes header)
-    
-    Env_over.generator = GanComponent(Env_over.n_features, 
-                              Env_over.init_weights, 
-                              config_re["gen_structure"][1][0], 
-                              dropout_prob,
-                              "generator")
-    Env_over.critic = GanComponent(Env_over.n_features, 
-                              Env_over.init_weights, 
-                              config_re["critic_structure"][1][0], 
-                              dropout_prob,
-                              "critic")
-    Env_over.generator.grow(config_re["gen_structure"][1][1])
-    Env_over.generator.grow(config_re["gen_structure"][1][2])
-    
-    Env_over.critic.grow(config_re["critic_structure"][1][1])
-    Env_over.critic.grow(config_re["critic_structure"][1][2])
-                                       
-    if path_ID[-1] != 'e':
-        telapsed_summary = Env_over.tuneAndTrain()
-    else:
-        telapsed_summary = Env_over.tuneAndTrain(preTrained=False)
-    #save times
-    telapsed_summary.to_csv(Env_over.path_results + "/time_training.csv")
 
-    #############################################################################################################
-    #Load underrep GAN for validation
-    pre_generator = Generator(Env_under.n_features, 
-                              Env_under.init_weights, 
-                              config_re["gen_structure"][0][0], 
-                              dropout_prob)
-    pre_generator.grow(config_re["gen_structure"][0][1])
-    pre_generator.grow(config_re["gen_structure"][0][2])
+    if config["train_main"]:
 
-    pre_generator.load_pars(Env_under.path_pars, 
-                            f"{pre_generator.n_pre_layers}Retraining", 
-                            Env_under.device)
-    pre_generator.change_dropout(dropout_prob)
+        Env_over.generator = GanComponent(Env_over.n_features,
+                                  Env_over.init_weights,
+                                  config_re["gen_structure"][1][0],
+                                  dropout_prob,
+                                  "generator")
+        Env_over.critic = GanComponent(Env_over.n_features,
+                                  Env_over.init_weights,
+                                  config_re["critic_structure"][1][0],
+                                  dropout_prob,
+                                  "critic")
+        Env_over.generator.grow(config_re["gen_structure"][1][1])
+        Env_over.generator.grow(config_re["gen_structure"][1][2])
 
-    pre_generator.eval()
-    to_device(pre_generator, Env_under.device)
+        Env_over.critic.grow(config_re["critic_structure"][1][1])
+        Env_over.critic.grow(config_re["critic_structure"][1][2])
 
+        if path_ID[-1] != 'e':
+            telapsed_summary = Env_over.tuneAndTrain()
+        else:
+            telapsed_summary = Env_over.tuneAndTrain(preTrained=False)
+        #save times
+        telapsed_summary.to_csv(Env_over.path_results + "/time_training.csv")
 
-    #Load overrep GAN for validation
-    pre_generator2 = Generator(Env_over.n_features, 
-                               Env_over.init_weights, 
-                               config_re["gen_structure"][1][0], 
-                               dropout_prob)
-    pre_generator2.grow(config_re["gen_structure"][1][1])
-    pre_generator2.grow(config_re["gen_structure"][1][2])
+        #############################################################################################################
+    if config["validate"]:
+        #Load underrep GAN for validation
+        pre_generator = GanComponent(Env_under.n_features,
+                                    Env_under.init_weights,
+                                    config_re["gen_structure"][0][0],
+                                    dropout_prob,
+                                    "generator")
+        pre_generator.grow(config_re["gen_structure"][0][1])
+        pre_generator.grow(config_re["gen_structure"][0][2])
 
-    pre_generator2.load_pars(Env_over.path_pars, 
-                             f"{pre_generator2.n_pre_layers}Retraining", 
-                             Env_over.device)
-    pre_generator2.change_dropout(dropout_prob)
+        pre_generator.load_pars(Env_under.path_pars,
+                                f"complete_loop_{pre_generator.n_pre_layers}Retraining",
+                                Env_under.device)
+        pre_generator.change_dropout(dropout_prob)
 
-    pre_generator2.eval()
-    to_device(pre_generator2, Env_over.device)
-
-    ##Validation
-    from GAN_Tools import classification_metrics
-
-    if experiment_data == 'microarray':
-        prepare_dat(PATH + path_ID + '/Data', 'dat_real_combo.csv', 1) #remove ID, keep label
-        prepare_dat(PATH + '/Data', 'dat_val.csv', 2) #remove obsolete col and ID
-    if experiment_data == 'simulation':
-        prepare_dat(PATH + path_ID + '/Data', 'dat_real_combo.csv', 0)
-        prepare_dat(PATH + '/Data', 'dat_val.csv', 0)
-    if experiment_data == 'metabolomics':
-        prepare_dat(PATH + path_ID + '/Data', 'dat_real_combo.csv', 1)
-        prepare_dat(PATH + '/Data', 'dat_val.csv', 1)
-
-    np.random.seed(120)
-    manual_seed(120)
-    random.seed(120)
-
-    #input##########################
-    if experiment_data == 'simulation':
-        path_dat_train = PATH + path_ID + '/Data/dat_real_combo_inp.csv'
-        path_dat_val = PATH + '/Data/dat_val_inp.csv'
-    if experiment_data == 'microarray' or experiment_data == 'metabolomics':
-        path_dat_train = PATH + path_ID + '/Data/dat_real_combo_inp.csv'
-        path_dat_val = PATH + '/Data/dat_val_inp.csv'
-    ################################
-
-    path_transformer = PATH + path_ID + '/Results/Main_Results/underrep' + '/real_transformer.pkl'
+        pre_generator.eval()
+        to_device(pre_generator, Env_under.device)
 
 
-    #the case label must be 1st alphabetically due to functionality of labelEncoder
-    classification_metrics(path_dat_train, path_dat_val, pre_generator, path_transformer,
-                           Env_under.n_features, Env_under.device,
-                           PATH + path_ID,
-                           pre_generator2)
+        #Load overrep GAN for validation
+        pre_generator2 = GanComponent(Env_over.n_features,
+                                    Env_over.init_weights,
+                                    config_re["gen_structure"][1][0],
+                                    dropout_prob,
+                                    "generator")
+        pre_generator2.grow(config_re["gen_structure"][1][1])
+        pre_generator2.grow(config_re["gen_structure"][1][2])
+
+        pre_generator2.load_pars(Env_over.path_pars,
+                                 f"complete_loop_{pre_generator2.n_pre_layers}Retraining",
+                                 Env_over.device)
+        pre_generator2.change_dropout(dropout_prob)
+
+        pre_generator2.eval()
+        to_device(pre_generator2, Env_over.device)
+
+        ##Validation
+        from GAN_Tools import classification_metrics
+
+        if experiment_data == 'microarray':
+            prepare_dat(PATH + path_ID + '/Data', 'dat_real_combo.csv', 1) #remove ID, keep label
+            prepare_dat(PATH + '/Data', 'dat_val.csv', 2) #remove obsolete col and ID
+        if experiment_data == 'simulation':
+            prepare_dat(PATH + path_ID + '/Data', 'dat_real_combo.csv', 0)
+            prepare_dat(PATH + '/Data', 'dat_val.csv', 0)
+        if experiment_data == 'metabolomics':
+            prepare_dat(PATH + path_ID + '/Data', 'dat_real_combo.csv', 1)
+            prepare_dat(PATH + '/Data', 'dat_val.csv', 1)
+
+        np.random.seed(120)
+        manual_seed(120)
+        random.seed(120)
+
+        #input##########################
+        if experiment_data == 'simulation':
+            path_dat_train = PATH + path_ID + '/Data/dat_real_combo_inp.csv'
+            path_dat_val = PATH + '/Data/dat_val_inp.csv'
+        if experiment_data == 'microarray' or experiment_data == 'metabolomics':
+            path_dat_train = PATH + path_ID + '/Data/dat_real_combo_inp.csv'
+            path_dat_val = PATH + '/Data/dat_val_inp.csv'
+        ################################
+
+        path_transformer = PATH + path_ID + '/Results/Main_Results/underrep' + '/real_transformer.pkl'
+
+
+        #the case label must be 1st alphabetically due to functionality of labelEncoder
+        classification_metrics(path_dat_train, path_dat_val, pre_generator, path_transformer,
+                               Env_under.n_features, Env_under.device,
+                               PATH + path_ID,
+                               pre_generator2)

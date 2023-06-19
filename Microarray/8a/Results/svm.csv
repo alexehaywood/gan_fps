@@ -1,0 +1,5 @@
+,impute_method,mean_roc_auc,mean_accuracy,hyp
+0,ExpandGAN,0.534024118447387,0.5320172108327006,"SVC(C=1, gamma=0.1, kernel='linear')"
+0,GAN,0.6695691762333515,0.664319734934769,"SVC(C=1, gamma=0.1, kernel='linear')"
+0,SMOTE,0.5,0.4920273348519362,"SVC(C=1, gamma=0.1, kernel='linear')"
+0,RO,0.5,0.4920273348519362,"SVC(C=1, gamma=0.1, kernel='linear')"

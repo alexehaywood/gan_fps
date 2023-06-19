@@ -1,0 +1,3 @@
+,lr_1,max_epochs_1,final_loss,max_loss,time_taken,epoch_final,final_select
+0,0.0005,500,1.677748203277588,3,00:02,0,1
+1,0.0001,500,2.131587028503418,3,00:02,0,0
