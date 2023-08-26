@@ -4,7 +4,7 @@ experiment_data: !!str "simulation"
 random_seed: 117
 
 train_pre: False
-train_main: True
+train_main: False
 validate: True
 
 pretraining:
@@ -36,7 +36,7 @@ pretraining:
     alpha_instab: !!float 3
 
 retraining: #[under, over]
-    path_prePars: "C:/Users/samue/Documents/GitHub/GAN_Scripts/Simulation_example/Results/External_Results/Saved_Pars"
+    path_prePars: "./Simulation_example/Results/External_Results/Saved_Pars"
     func_optim: ["SGD", "SGD"] #from torch.optim
     n_features: [150, 150] #218
     alpha: [None, None]

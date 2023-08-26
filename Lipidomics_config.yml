@@ -1,15 +1,15 @@
 #YAML
 PATH: !!str "./Lipidomics"
-experiment_data: !!str "lipidomics"
+experiment_data: !!str "metabolomics"
 random_seed: 117
 
 train_pre: False
-train_main: True
+train_main: False
 validate: True
 
 pretraining:
     func_optim: !!str "SGD" #from torch.optim
-    n_features: !!int 135 #218
+    n_features: !!int 218
     alpha: !!int 0
     beta: !!int 13
     batch_size: !!int 30
@@ -36,9 +36,9 @@ pretraining:
     alpha_instab: !!float 3
 
 retraining: #[under, over]
-    path_prePars: "C:/Users/samue/Documents/GitHub/GAN_Scripts/Lipidomics/Results/External_Results/Saved_Pars"
+    path_prePars: "./Lipidomics/Results/External_Results/Saved_Pars"
     func_optim: ["SGD", "SGD"] #from torch.optim
-    n_features: [135, 135] #218
+    n_features: [218, 218] 
     alpha: [None, None]
     beta: [13, 13]
     batch_size: [10, 20]

@@ -17,9 +17,9 @@ from plotnine import ggplot, aes, geom_line, geom_vline, labels, scales
 PATH = '...'
 
 ###Which Data
-#experiment_data = 'microarray'
+experiment_data = 'microarray'
 #experiment_data = 'simulation'
-experiment_data = 'metabolomics'
+#experiment_data = 'metabolomics'
 
 #%%
 ################################
@@ -41,7 +41,7 @@ else:
         '/8a', '/8b', '/8c',
         '/9a', '/9b', '/9c',
         '/1-Compare', '/2-Compare', '/3-Compare',
-        '/4-Compare', '/5-Compare', '/6-Compare', 
+        '/4-Compare', '/5-Compare', '/6-Compare',
         '/7-Compare', '/8-Compare', '/9-Compare'
         ]
 
@@ -90,7 +90,7 @@ for path_ID in dirs:
     Env_under.batch_size, Env_over.batch_size = 10, 20
     Env_under.iter_critic, Env_over.iter_critic = 2, 2
     Env_under.beta, Env_over.beta = 13, 13
-    
+
     Env_under.structure, Env_over.structure = [50, 100, 200], [50, 100, 200]
 
     dropout_prob = 0.7
@@ -106,8 +106,8 @@ for path_ID in dirs:
     else:
         print('error')
         break
-        
-    
+
+
     ########################################
 
 

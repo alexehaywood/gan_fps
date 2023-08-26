@@ -61,7 +61,7 @@ class GanComponent(nn.Module):
             nn.SELU(),
             nn.AlphaDropout(p = dropout_prob),
             )
-        
+
         self.structure = [nodes_out]
 
         self.pre_network.apply(init_weights_func)
@@ -72,7 +72,7 @@ class GanComponent(nn.Module):
             self.layer_out = nn.Linear(nodes_out, 1)
         else:
             print("Error")
-            
+
         nn.init.kaiming_normal_(self.layer_out.weight, nonlinearity='linear')
         self.layer_out.bias.data.fill_(0.01)
 
@@ -96,7 +96,7 @@ class GanComponent(nn.Module):
             self.layer_out = nn.Linear(n, 1)
         else:
             print("Error")
-            
+
         nn.init.kaiming_normal_(self.layer_out.weight, nonlinearity='linear')
         self.layer_out.bias.data.fill_(0.01)
 
@@ -186,45 +186,45 @@ class Results():
 
     def save_results(self, path):
         self.record.to_csv(path + '/saved_results.csv')
-        
-        
+
+
 #%%
-        
+
 class Environment():
     def __init__(self, results_record=None, generator=None, critic=None,
-          batch_size=None, path_dat=None, n_features=None, iter_critic=None, lr=None, alpha=None, func_optim=None, device=None, 
+          batch_size=None, path_dat=None, n_features=None, iter_critic=None, lr=None, alpha=None, func_optim=None, device=None,
           transformer=None, path_results=None, beta=None, n_training_samples=None, path_pars=None, PATH=None, tune_params=None, path_prePars=None):
         """
         """
         self.results_record, self.generator, self.critic, self.batch_size, self.path_dat, self.n_features, self.iter_critic, self.lr, self.alpha, self.func_optim, self.device, self.transformer, self.path_results, self.beta, self.n_training_samples, self.path_pars, self.PATH, self.tune_params, self.path_prePars = results_record, generator, critic, batch_size, path_dat, n_features, iter_critic, lr, alpha, func_optim, device, transformer, path_results, beta, n_training_samples, path_pars, PATH, tune_params, path_prePars
-    
+
         def init_weights(net):
             if type(net) == nn.Linear:
-                nn.init.kaiming_normal_(net.weight, nonlinearity='linear')   
-    
+                nn.init.kaiming_normal_(net.weight, nonlinearity='linear')
+
         self.init_weights = init_weights
-        
-    
+
+
     def findApEl(self, offset = 1, rate_save = 20):
         def objective(x, a, b, c, d, e, f, g, h, i, j, k):
         	return (a * x) + (b * x**2) + (c * x**3) + (d * x**4) + (e * x**5) + (f * x**6) + (g * x**7) + h#(h * x**8) + (i * x**9) + (j * x**10) + k
-        
+
         dat_x = self.results_record.record['epoch'].iloc[:offset-1]
         dat_y = self.results_record.record['loss_critic'].iloc[:offset-1]
-        
+
         ##curve fit
         popt, _ = curve_fit(objective, dat_x, dat_y)
         # summarize the parameter values
         a, b, c, d, e, f, g, h, i, j, k = popt
-        
+
         dat_obj = np.arange(min(dat_x), max(dat_x), 1)
         dat_obj = pd.DataFrame(
             {'x_line' : dat_obj,
             'y_line' : objective(dat_obj, a, b, c, d, e, f, g, h, i, j, k)}
             )
-        
+
         apEl = KneeLocator(dat_obj['x_line'], dat_obj['y_line'], direction = 'decreasing')
-        
+
         #plot
         plot = (
             ggplot(None)
@@ -234,19 +234,19 @@ class Environment():
             + labels.ylab('Loss')
         )
         return(int( rate_save * round(apEl.knee / rate_save) ), plot)
-        
+
     def optimise_critic(self, inp_noise, batch_real):
         optimiser = self.func_optim(self.critic.parameters(), self.lr)
-    
+
         batch_fake = self.generator(inp_noise)
-    
+
         pred_fake = self.critic(batch_fake)
         pred_fake_clone = pred_fake.detach().clone() #Make a clone to pass to retain gradients and pass to the optimise_gen function
         pred_real = self.critic(batch_real)
-    
+
         #Wasserstein distance
         loss = mean(pred_real) - mean(pred_fake)
-    
+
         #gradient penalty
         unif = to_device(rand(self.batch_size, 1), self.device)
         interpolates = (unif * batch_real) + ((1-unif) * batch_fake)
@@ -255,37 +255,37 @@ class Environment():
                          grad_outputs= ones_like(pred_interpolates)) #check
         slopes = linalg.norm(gradients[0], ord = 2, dim = 0)
         grad_pen = mean( square(slopes - 1) )
-    
+
         loss += self.beta * grad_pen
-    
+
         #Backpropagation
         optimiser.zero_grad()
         loss.backward()
         optimiser.step()
-    
+
         return(pred_fake_clone, mean(pred_real).item(), loss.item())
-    
-    
+
+
     def optimise_generator(self, pred_fake, n_sim):
         optimiser = self.func_optim(self.generator.parameters(), self.lr)
-    
+
         #metric for similarity
         inp_noise = randn(n_sim, self.n_features)
         inp_noise = inp_noise.to(self.device)
-    
+
         samps = self.generator(inp_noise)
         norm = linalg.matrix_norm(samps, ord = 2) #L2 matrix norm; greater value means less similar samples generated
-    
-        loss = mean(pred_fake) - self.alpha * log(norm) 
-    
+
+        loss = mean(pred_fake) - self.alpha * log(norm)
+
         #Backpropagation
         optimiser.zero_grad()
         loss.backward()
         optimiser.step()
-    
+
         return(loss.item(), norm.item())
-    
-    
+
+
     def get_scaler(self, n_samples, name_transformer):
         """
         Returns a fitted ColumnTransformer
@@ -293,10 +293,10 @@ class Environment():
         n = sum(1 for line in open(self.path_dat)) - 1 #number of records in file (excludes header)
         skip = sorted(random.sample(range(1,n+1),n-n_samples)) #the 0-indexed header will not be included in the skip list
         dat = pd.read_csv(self.path_dat, skiprows=skip)
-        
+
         ind_skewCols = []
         ind_normalCols = []
-    
+
         #check for skewed columns (sample size >= 8 needed)
         test_skew = dat.apply(skewtest, axis = 0)
         for i in range(0, len(test_skew.columns)):
@@ -304,99 +304,99 @@ class Environment():
                 ind_skewCols.append(i)
             else:
                 ind_normalCols.append(i)
-    
+
         skewed_transformer = Pipeline(steps = [
             ('scaler', PowerTransformer(method = 'yeo-johnson')) #allows for -'ve values
             ])
         normal_transformer = Pipeline(steps = [
             ('scaler', RobustScaler())
             ])
-    
+
         colTrans_early = ColumnTransformer(transformers=[
             ('skewed_trans', skewed_transformer, ind_skewCols),
             ('normal_trans', normal_transformer, ind_normalCols)
             ])
-    
+
         ext_transformer = colTrans_early.fit(dat)
         dump(ext_transformer, open(self.path_results+name_transformer, 'wb')) #save transformer
-        
+
         return(ext_transformer)
-        
-    
+
+
     def get_batch(self):
         #https://stackoverflow.com/questions/22258491/read-a-small-random-sample-from-a-big-csv-file-into-a-python-data-frame
         n = sum(1 for line in open(self.path_dat)) - 1 #number of records in file (excludes header)
         skip = sorted(random.sample(range(1,n+1),n-self.batch_size)) #the 0-indexed header will not be included in the skip list
         dat = pd.read_csv(self.path_dat, skiprows=skip)
-    
+
         dat = self.transformer.transform(dat)
-    
+
         return(dat)
-    
+
     def func_epoch(self, return_loss):
-    
+
         for i in range(1, self.iter_critic):
             #get data ready
             batch_real = from_numpy(self.get_batch())
             batch_real = batch_real.to(float32)
             inp_noise = randn(self.batch_size, self.n_features, dtype=float32)
-    
+
             batch_real = batch_real.to(self.device)
             inp_noise = inp_noise.to(self.device)
-    
+
             #train critic
             pred_fake, pred_real, loss_critic = self.optimise_critic(inp_noise, batch_real)
         #train generator
         loss_gen, norm_gen = self.optimise_generator(pred_fake, 20)
-    
+
         if return_loss == True:
             return([loss_critic, mean(pred_fake).item(), pred_real, loss_gen, norm_gen])
         else:
             return(None)
-    
-    
+
+
     def train(self, n_epochs, verbose=True):
-    
+
         report_rate = 20
-    
+
         if len(self.results_record.record.loc[self.results_record.record['n_pre_layers'] == self.generator.n_pre_layers]) != 0:
             start_epoch = self.results_record.record.loc[self.results_record.record['n_pre_layers'] ==
                                                     self.generator.n_pre_layers].iloc[-1, 0] + 1 #get the next epoch number
             start_epoch = int(start_epoch)
         else:
             start_epoch = 1
-    
+
         iterator = range(start_epoch, start_epoch + n_epochs)
         if verbose == True:
             iterator_tqdm = tqdm(iterator)
         else:
             iterator_tqdm = iterator
-        
+
         for i in ( iterator_tqdm ):
             if i % report_rate == 0:
                 return_loss = True
                 results = self.func_epoch(return_loss)
-    
+
                 self.results_record.new_record(self.generator.n_pre_layers, results, report_rate)
-    
+
                 self.critic.save_pars(self.path_pars, str(i))
                 self.generator.save_pars(self.path_pars, str(i))
                 self.results_record.save_results(self.path_results)
-    
+
             else:
                 return_loss = False
                 results = self.func_epoch(return_loss)
-        
+
         if verbose == True:
             prog = str(iterator_tqdm)
             time_elapsed = str(prog)[str(prog).find('[')+1:str(prog).find('<')].strip(' ')
             return(time_elapsed)
-        
-    
+
+
     def select_pars(self, epoch, remove_old = True):
         self.generator.load_pars(self.path_pars, epoch, self.device)
         self.critic.load_pars(self.path_pars, epoch, self.device)
-    
+
         if remove_old == True:
             #https://stackoverflow.com/questions/185936/how-to-delete-the-contents-of-a-folder
             folder = self.path_pars
@@ -409,12 +409,12 @@ class Environment():
                         shutil.rmtree(file_path)
                 except Exception as e:
                     print('Failed to delete %s. Reason: %s' % (file_path, e))
-                    
+
     def load_pre(self, dropout_prob, seed, preTrained = True, path_prePars = None):
         np.random.seed(seed)
         manual_seed(seed)
         random.seed(seed)
-        
+
         flag_loadPars = True
         if preTrained:
             id_label = f"{self.generator.n_pre_layers}Pretraining"
@@ -423,17 +423,17 @@ class Environment():
                 flag_loadPars = False
             else:
                 id_label = f"{self.generator.n_pre_layers-1}Pretraining"
-        
+
         struct_gen = self.generator.structure
         struct_critic = self.critic.structure
-        self.generator = GanComponent(self.n_features, 
-                                      self.init_weights, 
-                                      struct_gen[0], 
+        self.generator = GanComponent(self.n_features,
+                                      self.init_weights,
+                                      struct_gen[0],
                                       dropout_prob,
                                      "generator")
-        self.critic = GanComponent(self.n_features, 
-                                   self.init_weights, 
-                                   struct_critic[0], 
+        self.critic = GanComponent(self.n_features,
+                                   self.init_weights,
+                                   struct_critic[0],
                                    dropout_prob,
                                    "critic")
         range_upper = len(struct_gen)
@@ -446,22 +446,22 @@ class Environment():
         if flag_loadPars:
             if not preTrained:
                 self.generator.load_pars(self.path_pars, f"complete_loop_{id_label}", self.device)
-                self.critic.load_pars(self.path_pars, f"complete_loop_{id_label}", self.device)   
-                
+                self.critic.load_pars(self.path_pars, f"complete_loop_{id_label}", self.device)
+
                 self.generator.grow(struct_gen[-1])
                 self.critic.grow(struct_critic[-1])
             else:
                 self.generator.load_pars(path_prePars, f"complete_loop_{id_label}", self.device)
-                self.critic.load_pars(path_prePars, f"complete_loop_{id_label}", self.device)   
-        
+                self.critic.load_pars(path_prePars, f"complete_loop_{id_label}", self.device)
+
         self.generator.train()
         self.critic.train()
-        
+
         to_device(self.generator, self.device)
         to_device(self.critic, self.device)
-        
-        
-    def auto_tune(self, max_epochs_1, max_loss_1, n_epochs_2, dropout_prob, seed, 
+
+
+    def auto_tune(self, max_epochs_1, max_loss_1, n_epochs_2, dropout_prob, seed,
                   lr_1, lr_2,
                   rate_save = 20, diff_epochs = 500, max_loss_2 = 15, min_loss_2 = -10,
                   alpha_instab = 3, preTrained = True):
@@ -485,21 +485,21 @@ class Environment():
             'time_taken' : [],
             'final_lr' : None
             }
-        
+
         final_epochs = []
         final_losses = []
         for i in range(0, len(lr_1), 1):
             lr = lr_1[i]
             self.load_pre(dropout_prob, 118, preTrained = preTrained, path_prePars=self.path_prePars)
             self.results_record = Results(path = self.path_results, saved_results = False)
-            
+
             iterator_tqdm = tqdm(range(100, max_epochs_1 + 100, 100), desc = 'lr_1 %i out of %i' %  (i+1, len(lr_1)) )
             for n_epochs in iterator_tqdm:
                 self.lr = lr
                 self.train(100, verbose=False)
-                
+
                 losses = self.results_record.record['loss_critic']
-                
+
                 if losses.iloc[-1] < max_loss_1:
                     if losses.iloc[0] < max_loss_1:
                         loss_final = losses.iloc[0]
@@ -512,30 +512,30 @@ class Environment():
 
                     print('Final loss reached: {}'.format(loss_final))
                     break
-                
+
                 if n_epochs == max_epochs_1:
                     loss_final = losses.iloc[-1]
                     epoch_final = max_epochs_1
-                    
+
                     print('Final loss reached: {}'.format(loss_final))
-                
+
             prog = iterator_tqdm
             time = str(prog)[str(prog).find('[')+1:str(prog).find('<')].strip(' ')
-            
+
             final_epochs.append(epoch_final)
             final_losses.append(loss_final)
-            
+
             results_tuning_1['lr_1'].append(lr)
             results_tuning_1['max_epochs_1'].append(max_epochs_1)
             results_tuning_1['epoch_final'].append(epoch_final)
             results_tuning_1['final_loss'].append(loss_final)
             results_tuning_1['max_loss'].append(max_loss_1)
             results_tuning_1['time_taken'].append(time)
-            
+
             iterator_tqdm.update()
-            
+
         i = final_losses.index(min(final_losses))
-        
+
         final_lr = [0] * len(lr_1)
         final_lr[i] = 1
         results_tuning_1['final_select'] = final_lr
@@ -549,46 +549,46 @@ class Environment():
         for i in range(0, len(lr_2)):
             lr = lr_2[i]
             print( 'lr_2 %i out of %i' %  (i+1, len(lr_2)) )
-            
+
             self.load_pre(dropout_prob, 118, preTrained = preTrained, path_prePars=self.path_prePars)
             self.results_record = Results(path = self.path_results, saved_results = False)
 
             #1st round of training
             if n_epochs_1 != 0:
-                self.lr = lr_1    
+                self.lr = lr_1
                 telapsed_1 = self.train(n_epochs_1)
             else:
                 telapsed_1 = pd.NA
-            
+
             #2nd round of training
             self.lr = lr
             telapsed_2 = self.train(n_epochs_2)
-            
-            
-            losses = self.results_record.record['loss_critic'].iloc[-int(n_epochs_2/rate_save):]     
-            
+
+
+            losses = self.results_record.record['loss_critic'].iloc[-int(n_epochs_2/rate_save):]
+
             ind_check = np.array([np.nan, np.nan])
-            
+
             if losses.gt(max_loss_2).sum() > 0: #check for null values
                 ind_check[0] = losses.gt(max_loss_2).argmax()
             if losses.lt(min_loss_2).sum() > 0:
                 ind_check[1] = losses.lt(min_loss_2).argmax()
-            
+
             if np.isnan(ind_check).sum() == 2: #no values gt or lt limits
                 ind_null = len(losses)
             else:
                 ind_null = int(ind_check[np.nanargmin(ind_check)]) + 1
-                
+
             losses = losses[:ind_null]
             print('Null value at index {}'.format(ind_null))
-            
+
             apex = self.get_apex(losses.tolist())
             if len(apex)<50:
                 top_x_diffs=len(apex)
             else:
                 top_x_diffs=50
             instab, _ = self.get_instab(apex, top_x_diffs)
-            
+
             plot_losses = (
                 ggplot(self.results_record.record.iloc[:int(n_epochs_1/rate_save) + ind_null])
                 + geom_line(color = 'red', mapping = aes(y = 'loss_critic', x = 'epoch'))
@@ -597,16 +597,16 @@ class Environment():
                 + labels.ylab('Loss')
                 + scales.ylim(-10, 15)
             )
-            
+
             plot_losses.save(self.path_results+'/{} tuning_loss'.format(lr) + '_retrain' + '.png')
-            
+
             diff = losses.iloc[:int(diff_epochs/rate_save)].mean() - losses.iloc[-int(diff_epochs /rate_save) -ind_null:].mean()
-            
+
             print('Final instab and diff: {}, {}'.format(instab, diff))
-            
+
             final_instabs.append(instab)
             final_diffs.append(diff)
-            
+
             results_tuning_2['lr_2'].append(lr)
             results_tuning_2['n_epochs_2'].append(n_epochs_2)
             results_tuning_2['max_loss_2'].append(max_loss_2)
@@ -625,22 +625,22 @@ class Environment():
         results_tuning_2['final_lr'] = final_lr
 
         lr_2 = lr_2[i]
-        
+
         return(lr_1, n_epochs_1, lr_2, results_tuning_1, results_tuning_2)
-    
+
     def tuneAndTrain(self, preTrained=True):
         """
         ...
         """
-        max_loss = self.tune_params["max_loss_2"] 
+        max_loss = self.tune_params["max_loss_2"]
         min_loss = self.tune_params["min_loss_2"]
-        
+
         lr_1, n_epochs_1, lr_2, results_tuning_1, results_tuning_2 = \
             self.auto_tune(**self.tune_params, preTrained=preTrained)
 
         results_tuning_1 = pd.DataFrame.from_dict(results_tuning_1)
         results_tuning_2 = pd.DataFrame.from_dict(results_tuning_2)
-        
+
         if preTrained:
             id_label = f"{self.generator.n_pre_layers}Retraining"
         else:
@@ -700,8 +700,8 @@ class Environment():
 
         return telapsed_summary
 
-    
-        
+
+
     def get_apex(self, dat_y):
         apex = []
 
@@ -725,7 +725,7 @@ class Environment():
 
                     decreasing = True
 
-        return(apex)            
+        return(apex)
 
     def get_instab(self, dat_y, top_x_diffs = 50):
         compare_i1 = list( range(0, len(dat_y)-1, 1) )
@@ -742,7 +742,7 @@ class Environment():
 ##Validation Function
 def classification_metrics(path_dat_train, path_dat_val, generator, path_transformer, n_features, device, PATH,
                            generator2 = None, expand_size = None):
-    
+
     transformer = joblib.load(path_transformer)
 
     dat_x = pd.read_csv(path_dat_train)
@@ -760,19 +760,19 @@ def classification_metrics(path_dat_train, path_dat_val, generator, path_transfo
 
     for i_classifier in range(0,2):
         results_classification = pd.DataFrame(None,
-            columns=['impute_method', 'mean_roc_auc', 'mean_accuracy', 'hyp'])
+            columns=['impute_method', 'mean_roc_auc', 'mean_accuracy', 'sd_roc_auc','hyp'])
 
         summary_text = pd.DataFrame(columns = ['summary', 'pos', 'col'], index = [1, 2, 3, 4])
-        plot = ( 
+        plot = (
             ggplot()
             + labels.xlab('Mean FPR')
             + labels.ylab('Mean TPR')
             + scales.ylim(-0.05, 1.05)
             + scales.xlim(-0.05, 1.05)
-            + scale_color_manual(values = ['m', 'b', 'g', 'y'], limits = ['ExpandGAN', 'GAN', 'SMOTE', 'RO']) 
+            + scale_color_manual(values = ['m', 'b', 'g', 'y'], limits = ['ExpandGAN', 'GAN', 'SMOTE', 'RO'])
            )
-        
-        
+
+
         for i_methods in tqdm(range(0,4)):
             if generator2 is not None:
                 impute_method = 'ExpandGAN'
@@ -927,12 +927,12 @@ def classification_metrics(path_dat_train, path_dat_val, generator, path_transfo
                 scores_interpTpr.append(interp_tpr)
 
             results_entry = pd.DataFrame(np.column_stack(
-                [impute_method, fmean(scores_roc), fmean(scores_acc),
+                [impute_method, fmean(scores_roc), fmean(scores_acc), stdev(scores_roc),
                  str(searcher.best_estimator_)],
                 ),
 
 
-            columns=['impute_method', 'mean_roc_auc', 'mean_accuracy', 'hyp'])
+            columns=['impute_method', 'mean_roc_auc', 'mean_accuracy', 'sd_roc_auc', 'hyp'])
             results_classification = pd.concat([results_classification, results_entry], join='inner')
 
             #roc plot info
@@ -944,7 +944,7 @@ def classification_metrics(path_dat_train, path_dat_val, generator, path_transfo
                 'mean_fpr' : mean_fpr,
                 'mean_tpr' : mean_tpr,
                 'group' : [impute_method] * len(mean_fpr)
-                })    
+                })
             plot = plot + geom_line(data = dat_plot, mapping = aes(x = 'mean_fpr', y = 'mean_tpr', color = 'group'), size = 1)
 
             summary_text.iloc[i_methods, 0] = r"%s (AUC = %0.2f +- %0.2f)" % (impute_method, fmean(scores_roc), stdev(scores_roc))

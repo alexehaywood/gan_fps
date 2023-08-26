@@ -1,5 +1,5 @@
-,impute_method,mean_roc_auc,mean_accuracy,hyp
-0,ExpandGAN,0.5001728530632759,0.35487734487734485,"SVC(C=5, gamma=0.1)"
-0,GAN,0.7567632392373549,0.7593506493506492,"SVC(C=1, gamma=0.1, kernel='linear')"
-0,SMOTE,0.8674503882657464,0.8757142857142856,"SVC(C=1, gamma=0.1, kernel='linear')"
-0,RO,0.8674503882657464,0.8757142857142856,"SVC(C=1, gamma=0.1, kernel='linear')"
+,impute_method,mean_roc_auc,mean_accuracy,sd_roc_auc,hyp
+0,ExpandGAN,0.5001728530632759,0.35487734487734485,0.0006623562215257297,"SVC(C=5, gamma=0.1)"
+0,GAN,0.7567632392373549,0.7593506493506492,0.024489215827786077,"SVC(C=1, gamma=0.1, kernel='linear')"
+0,SMOTE,0.8674503882657464,0.8757142857142856,0.0,"SVC(C=1, gamma=0.1, kernel='linear')"
+0,RO,0.8674503882657464,0.8757142857142856,0.0,"SVC(C=1, gamma=0.1, kernel='linear')"

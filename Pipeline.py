@@ -1,5 +1,5 @@
 from os import chdir
-chdir('C:/Users/samue/Documents/GitHub/GAN_Scripts')
+chdir('/Users/cusworsj/Documents/GAN_Paper/Code/gitrepo')
 
 from GAN_Tools import get_default_device, to_device, GanComponent, Results, Environment
 from GAN_Tools import classification_metrics
@@ -16,7 +16,7 @@ import joblib
 import yaml
 
 #config_file = "./Microarray_config.yml"
-config_file = "./Simulation_config.yml"
+config_file = "./Lipidomics_config.yml"
 with open(config_file, "r") as file:
     config = yaml.safe_load(file)
 
@@ -199,12 +199,11 @@ if experiment_data == 'metabolomics':
         ]
 else:
     dirs = [
-        #'/1a', '/1b', '/1c',
-        #'/2a', '/2b', '/2c',
-        #'/3a', '/3b', '/3c',
-        #'/4a', '/4b', '/4c',
-        #'/5a',
-        '/5b', '/5c',
+        '/1a', '/1b', '/1c',
+        '/2a', '/2b', '/2c',
+        '/3a', '/3b', '/3c',
+        '/4a', '/4b', '/4c',
+        '/5a', '/5b', '/5c',
         '/6a', '/6b', '/6c',
         '/7a', '/7b', '/7c',
         '/8a', '/8b', '/8c',

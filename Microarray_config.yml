@@ -2,7 +2,10 @@
 PATH: !!str "./Microarray"
 experiment_data: !!str "microarray"
 random_seed: 117
+
 train_pre: False
+train_main: False
+validate: True
 
 pretraining:
     func_optim: !!str "SGD" #from torch.optim
@@ -33,7 +36,7 @@ pretraining:
     alpha_instab: !!float 3
     
 retraining: #[under, over]
-    path_prePars: "C:/Users/samue/Documents/GitHub/GAN_Scripts/Microarray/Results/External_Results/Saved_Pars"
+    path_prePars: "./Microarray/Results/External_Results/Saved_Pars"
     func_optim: ["SGD", "SGD"] #from torch.optim
     n_features: [135, 135] #218
     alpha: [None, None]

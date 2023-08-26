@@ -1,0 +1,596 @@
+---
+title: "Results"
+author: "Samuel Cusworth"
+date: "13/06/2022"
+output: pdf_document
+---
+
+```{r, setup}
+knitr::opts_chunk$set(
+  root.dir = "/Users/cusworsj/Documents/GAN_Paper/Code/gitrepo"
+)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(patchwork)
+```
+
+```{r}
+dat <- read_csv('/Users/cusworsj/Documents/GAN_Paper/Code/gitrepo/results_merged.csv', col_types = 'fffffffdddc')
+```
+
+```{r}
+dat_notGAN <- dat %>% filter(experiment == 'sim', method == 'SMOTE' | method == 'RO') %>% group_by(method, n_control, class_imbalance) %>% 
+  distinct(auc_mean, auc_sd, .keep_all = TRUE) %>% ungroup()
+dat_GAN <- dat %>% filter(experiment == 'sim', method == 'ExpandGAN' | (method == 'GAN' & alpha1 == 0) )
+dat_GAN <- rbind(dat_GAN, dat %>% filter(experiment == 'sim', method == 'GAN' & alpha1 == 1) %>% distinct(auc_mean, auc_sd, .keep_all = TRUE) %>% ungroup())
+
+dat_graph <- rbind(dat_notGAN, dat_GAN)
+
+dat_notGAN <- dat %>% filter(experiment == 'microarray', method == 'SMOTE' | method == 'RO' | method == 'ClassicGAN' | method == 'ClassicExpand') %>% group_by(method, n_control, class_imbalance) %>% 
+  distinct(auc_mean, auc_sd, .keep_all = TRUE) %>% ungroup()
+dat_GAN <- dat %>% filter(experiment == 'microarray', method == 'ExpandGAN' | (method == 'GAN' & alpha1 == 0) )
+dat_GAN <- rbind(dat_GAN, dat %>% filter(experiment == 'microarray', method == 'GAN' & alpha1 == 1) %>% distinct(auc_mean, auc_sd, .keep_all = TRUE) %>% ungroup())
+
+dat_graph <- rbind(dat_graph, dat_notGAN, dat_GAN)
+dat_graph <- dat_graph %>% 
+  group_by(method, class_imbalance, experiment, n_control, alpha1, alpha2) %>%
+  filter(auc_mean == max(auc_mean))
+```
+
+```{r}
+size <- 0.5
+
+p1 <- ggplot(data = dat_graph %>% filter(class_imbalance == 0.4, experiment == 'sim'))+
+  geom_boxplot(aes(x = n_control, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
+                   ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
+                   group = interaction(n_control, alpha1, alpha2, method), col = method), 
+               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
+  
+  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
+  
+  scale_y_continuous(limits=c(0,0.5),oob = scales::rescale_none) +
+  
+  ggtitle('class_imbalance = 0.4') +
+  ylab('AUC Diff')
+
+p2 <- ggplot(data = dat_graph %>% filter(class_imbalance == 0.5, experiment == 'sim'))+
+  geom_boxplot(aes(x = n_control, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
+                   ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
+                   group = interaction(n_control, alpha1, alpha2, method), col = method), 
+               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
+  
+  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
+  
+  scale_y_continuous(limits=c(0,0.5),oob = scales::rescale_none) +
+  
+  ggtitle('class_imbalance = 0.5') +
+  ylab('AUC Diff')
+
+p3 <- ggplot(data = dat_graph %>% filter(class_imbalance == 0.6, experiment == 'sim'))+
+  geom_boxplot(aes(x = n_control, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
+                   ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
+                   group = interaction(n_control, alpha1, alpha2, method), col = method), 
+               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
+  
+  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
+  
+  scale_y_continuous(limits=c(0,0.5),oob = scales::rescale_none) +
+  
+  ggtitle('class_imbalance = 0.6') +
+  ylab('AUC Diff')
+
+
+
+p4 <- ggplot(data = dat_graph %>% filter(class_imbalance == 0.4, experiment == 'microarray', !(method == 'ClassicExpand'), !(method == 'ClassicGAN') ))+
+  geom_boxplot(aes(x = n_control, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
+                   ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
+                   group = interaction(n_control, alpha1, alpha2, method), col = method), 
+               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
+  
+  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
+  
+  scale_y_continuous(limits=c(-0.1,0.4),oob = scales::rescale_none) +
+  
+  ggtitle('class_imbalance = 0.4') +
+  ylab('AUC Diff')
+
+p5 <- ggplot(data = dat_graph %>% filter(class_imbalance == 0.5, experiment == 'microarray', !(method == 'ClassicExpand'), !(method == 'ClassicGAN')))+
+  geom_boxplot(aes(x = n_control, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
+                   ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
+                   group = interaction(n_control, alpha1, alpha2, method), col = method), 
+               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
+  
+  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
+  
+  scale_y_continuous(limits=c(-0.1,0.4),oob = scales::rescale_none) +
+  
+  ggtitle('class_imbalance = 0.5') +
+  ylab('AUC Diff')
+
+p6 <- ggplot(data = dat_graph %>% filter(class_imbalance == 0.6, experiment == 'microarray', !(method == 'ClassicExpand'), !(method == 'ClassicGAN')))+
+  geom_boxplot(aes(x = n_control, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
+                   ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
+                   group = interaction(n_control, alpha1, alpha2, method), col = method), 
+               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
+  
+  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
+  
+  scale_y_continuous(limits=c(-0.1,0.4),oob = scales::rescale_none) +
+  
+  ggtitle('class_imbalance = 0.6') +
+  ylab('AUC Diff')
+
+
+p1+p2+p3 + guide_area() + plot_layout(ncol = 2, guides = 'collect')
+ggsave("Submit/Figure_3.jpeg", device="jpeg")
+p4+p5+p6 + guide_area() + plot_layout(ncol = 2, guides = 'collect')
+ggsave("Submit/Figure_4.jpeg", device="jpeg")
+```
+
+
+```{r}
+###Summary Table
+library(gt)
+colnames(dat_graph)
+dat_table <- dat_graph %>%
+  select(-classifier, -hyp, -mean_accuracy) %>%
+  group_by(experiment, method, n_control, class_imbalance) %>% 
+  arrange(desc(auc_mean)) %>% 
+  slice_head(n=1) %>% 
+  ungroup() %>% 
+  select(-alpha1, -alpha2)
+
+dat_table <- dat_table %>% 
+  pivot_wider(names_from = experiment, values_from = c(auc_mean, auc_sd))
+
+x <- dat_table %>% 
+  select(method, class_imbalance, n_control, auc_mean_microarray, auc_sd_microarray, auc_mean_sim, auc_sd_sim) %>%
+  mutate(across(where(is.numeric), \(x) round(x, 2))) %>%
+  gt(groupname_col = 'method') %>%
+  tab_header(title = md('**Summary**')) %>%
+  tab_spanner(label = 'Microarray', columns = c(auc_mean_microarray, auc_sd_microarray)) %>%
+  tab_spanner(label = 'Simulation', columns = c(auc_mean_sim, auc_sd_sim)) %>%
+  #cols_width(Attribute ~ px(80), starts_with('percent') ~ px(50), everything() ~ px(70)) %>%
+  data_color(c(auc_mean_microarray,
+               auc_mean_sim), colors = scales::col_numeric( domain = c(0.5, 0.9),
+                                                                        palette = as.character(paletteer::paletteer_d(
+                                                                          palette='RColorBrewer::Blues')))) %>%
+  data_color(c(auc_sd_microarray,
+               auc_sd_sim), colors = scales::col_numeric( domain = c(0, 0.2),
+                                                                        palette = as.character(paletteer::paletteer_d(
+                                                                          palette='RColorBrewer::Blues')))) %>%
+  cols_label(auc_mean_microarray = 'Mean_AUC', auc_mean_sim = 'Mean_AUC', 
+             auc_sd_microarray = 'sd', auc_sd_sim = 'sd') %>%
+  tab_options(row_group.border.top.width = '3.5px',
+              table.font.size = 15) %>%
+  cols_align(align = 'right') %>%
+  tab_options(data_row.padding = px(0))
+
+x
+gtsave(x, "Submit/Supp_Table_1.html", inline_css=TRUE) 
+webshot::webshot('Submit/Supp_Table_1.html', 'Supp_Table_1.png', delay = 0.5)
+```
+
+
+```{r}
+x <- dat_table %>% select(method, class_imbalance, n_control, auc_mean_microarray, auc_sd_microarray, auc_mean_sim, auc_sd_sim)
+
+length(which(x$auc_mean_microarray >= 0.6)) / nrow(x)
+```
+
+```{r}
+size <- 2
+
+dat_x <- dat_graph %>% 
+  select(-classifier, -hyp, -mean_accuracy) %>%
+  group_by(experiment, method, n_control, class_imbalance) %>% 
+  arrange(desc(auc_mean)) %>% 
+  slice_head(n=1) %>% 
+  ungroup() %>% 
+  select(-alpha1, -alpha2)
+
+p4 <- ggplot(data = dat_x %>% filter(n_control == 40, experiment == 'microarray', !(method == 'ClassicExpand'), !(method == 'ClassicGAN') ))+
+  geom_point(aes(x = class_imbalance, y = auc_mean-0.5,
+                   group = method, col = method), 
+             fill = 'white', stat = 'identity', 
+             size = size, alpha = 0.8) +
+  geom_line(aes(x = class_imbalance, y = auc_mean-0.5,
+                   group = method, col = method),
+            size = 0.8, linetype = 'solid', alpha = 0.6) + 
+  
+  geom_errorbar(aes(x = class_imbalance, ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
+                   group = method, col = method), 
+               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = 0.4) +
+  
+  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
+  
+  scale_y_continuous(limits=c(-0.1,0.4),oob = scales::rescale_none) +
+  
+  ggtitle('n_control = 40') +
+  ylab('AUC Diff')
+
+p5 <- ggplot(data = dat_x %>% filter(n_control == 80, experiment == 'microarray', !(method == 'ClassicExpand'), !(method == 'ClassicGAN') ))+
+  geom_point(aes(x = class_imbalance, y = auc_mean-0.5,
+                   group = method, col = method), 
+             fill = 'white', stat = 'identity', 
+             size = size, alpha = 0.8) +
+  geom_line(aes(x = class_imbalance, y = auc_mean-0.5,
+                   group = method, col = method),
+            size = 0.8, linetype = 'solid', alpha = 0.6) + 
+  
+  geom_errorbar(aes(x = class_imbalance, ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
+                   group = method, col = method), 
+               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = 0.4) +
+  
+  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
+  
+  scale_y_continuous(limits=c(-0.1,0.4),oob = scales::rescale_none) +
+  
+  ggtitle('n_control = 80') +
+  ylab('AUC Diff')
+
+p6 <- ggplot(data = dat_x %>% filter(n_control == 120, experiment == 'microarray', !(method == 'ClassicExpand'), !(method == 'ClassicGAN') ))+
+  geom_point(aes(x = class_imbalance, y = auc_mean-0.5,
+                   group = method, col = method), 
+             fill = 'white', stat = 'identity', 
+             size = size, alpha = 0.8) +
+  geom_line(aes(x = class_imbalance, y = auc_mean-0.5,
+                   group = method, col = method),
+            size = 0.8, linetype = 'solid', alpha = 0.6) + 
+  
+  geom_errorbar(aes(x = class_imbalance, ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
+                   group = method, col = method), 
+               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = 0.4) +
+  
+  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
+  
+  scale_y_continuous(limits=c(-0.1,0.4),oob = scales::rescale_none) +
+  
+  ggtitle('n_control = 120') +
+  ylab('AUC Diff')
+
+p4+p5+p6 + guide_area() + plot_layout(ncol = 2, guides = 'collect')
+ggsave("Submit/Figure_4_2.jpeg", device="jpeg")
+```
+
+```{r}
+size <- 0.5
+
+p4 <- ggplot(data = dat_x %>% filter(class_imbalance == 0.4, experiment == 'microarray', method %in% c('GAN', 'ExpandGAN', 'ClassicGAN', 'ClassicExpand') ))+
+  geom_boxplot(aes(x = n_control, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
+                   ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
+                   group = interaction(n_control, method), col = method), 
+               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
+  
+  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
+  
+  scale_y_continuous(limits=c(-0.1,0.4),oob = scales::rescale_none) +
+  
+  ggtitle('class_imbalance = 0.4') +
+  ylab('AUC Diff')
+
+p5 <- ggplot(data = dat_x %>% filter(class_imbalance == 0.5, experiment == 'microarray', method %in% c('GAN', 'ExpandGAN', 'ClassicGAN', 'ClassicExpand')))+
+  geom_boxplot(aes(x = n_control, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
+                   ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
+                   group = interaction(n_control, method), col = method), 
+               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
+  
+  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
+  
+  scale_y_continuous(limits=c(-0.1,0.4),oob = scales::rescale_none) +
+  
+  ggtitle('class_imbalance = 0.5') +
+  ylab('AUC Diff')
+
+p6 <- ggplot(data = dat_x %>% filter(class_imbalance == 0.6, experiment == 'microarray', method %in% c('GAN', 'ExpandGAN', 'ClassicGAN', 'ClassicExpand')))+
+  geom_boxplot(aes(x = n_control, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
+                   ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
+                   group = interaction(n_control, method), col = method), 
+               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
+  
+  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
+  
+  scale_y_continuous(limits=c(-0.1,0.4),oob = scales::rescale_none) +
+  
+  ggtitle('class_imbalance = 0.6') +
+  ylab('AUC Diff')
+
+p4+p5+p6 + guide_area() + plot_layout(ncol = 2, guides = 'collect')
+ggsave("Submit/Figure_5.jpeg", device="jpeg")
+```
+
+
+# Stat tests
+2 sets of stat tests, microarray and simulation
+Both tests done on the best combo of alphas for each group (determined by highest auroc)
+```{r}
+experiments <- c("sim", "microarray")
+experiment_ <- experiments[2]
+
+dat_graph_stat <- dat_graph  %>%rowid_to_column('id_unique')
+dat_graph_stat$id_unique <- as.character(dat_graph_stat$id_unique)
+
+dat_test <- dat_graph_stat %>%
+  select(-classifier, -hyp, -mean_accuracy) %>%
+  group_by(experiment, method, n_control, class_imbalance) %>% 
+  arrange(desc(auc_mean)) %>% 
+  slice_head(n=1) %>% ungroup() %>% 
+  select(-alpha1, -alpha2)
+
+dat_test <- dat_test %>% filter(experiment == experiment_)
+#dat_test <- dat_test %>% pivot_wider(names_from = experiment, values_from = c(auc_mean, auc_sd))
+
+ind_test <- gtools::combinations(n = nrow(dat_test), r = 2, v = seq(1, nrow(dat_test)))
+
+pvals <- apply(ind_test, 1, function(x){ BSDA::tsum.test( dat_test$auc_mean[x[1]], dat_test$auc_sd[x[1]], 100,
+                                                              dat_test$auc_mean[x[2]], dat_test$auc_sd[x[2]], 100,
+                                                              var.equal = FALSE)$p.value }) #simulation
+stat_test <- pvals %>% p.adjust(method = 'BH')
+
+stat_test <- as.data.frame(ind_test) %>% mutate(adj_p = stat_test, p = pvals) %>% arrange(adj_p) %>%
+  mutate(id1 = dat_test$id_unique[V1], method1 = dat_test$method[V1], n_control1 = dat_test$n_control[V1], class_imb1 = dat_test$class_imbalance[V1], 
+         id2 = dat_test$id_unique[V2], method2 = dat_test$method[V2], n_control2 = dat_test$n_control[V2], class_imb2 = dat_test$class_imbalance[V2])
+
+```
+
+```{r}
+methods <- c('GAN')
+not_methods <- c("ExpandGAN")
+stat_test %>% filter((method1 %in% methods | method2 %in% methods)) %>% filter(!(method1 %in% not_methods | method2 %in% not_methods)) %>%
+  filter(n_control1 == n_control2 & class_imb1 == class_imb2) %>% filter(adj_p <= 0.05) %>% select(-id1, -V1, -V2, -id2) %>%
+  arrange(desc(n_control1)) %>% filter(n_control1 == 120) 
+```
+
+```{r}
+##############Input
+class_imb <- 0.4
+n_control_q <- 10
+methods <- c('GAN', 'ClassicGAN', 'RO', 'SMOTE')
+##############
+
+size = 1
+
+stat_test_query <- stat_test %>% filter(n_control1 == n_control_q & n_control2 == n_control_q & 
+                                        class_imb1 == class_imb & class_imb2 == class_imb 
+                                        & (method1 %in% methods & method2 %in% methods)) %>% filter(adj_p < 0.05)
+if(nrow(stat_test_query) == 0){
+  print('No Sig')
+} else{
+  sig_pairs <- lapply( seq(1, nrow(stat_test_query)), function(x){c(stat_test_query$id1[x], stat_test_query$id2[x])} )
+#sig_pairs <- lapply( seq(1, 3), function(x){c(stat_test_query$id1[x], stat_test_query$id2[x])} )
+
+p1 <- ggplot(data = dat_graph_stat %>% filter(class_imbalance == class_imb, experiment == 'microarray', n_control == n_control_q),
+             
+             aes(x = id_unique, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
+                   ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5, 
+                 col = method, y = auc_mean-0.5))+
+  
+  geom_boxplot(aes(group = id_unique), 
+               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
+  
+  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
+  
+  scale_y_continuous(limits=c(-0.2,1),oob = scales::rescale_none) +
+  ylab('AUC Diff') +
+  
+  ggsignif::geom_signif(
+    comparisons = sig_pairs,
+    y_position = seq(0.2, 1, (1-0.2)/length(sig_pairs))
+  )
+
+p1
+
+}
+```
+```{r}
+print(dat_graph_stat %>% filter(class_imbalance == 0.4, experiment == 'microarray') %>% select(id_unique))
+
+```
+
+
+##Metabolomics Results
+```{r}
+library(tidyverse)
+library(ggplot2)
+
+experiment_ <- "metabolomics"
+
+dat <- read_csv('/Users/cusworsj/Documents/GAN_Paper/Code/gitrepo/results_merged.csv', col_types = 'fffffffdddc')
+summary(dat)
+
+dat_notGAN <- dat %>% 
+  filter(experiment == experiment_, method == 'SMOTE' | method == 'RO') %>% 
+  group_by(method, n_control, class_imbalance) %>% 
+  distinct(auc_mean, auc_sd, .keep_all = TRUE) %>% 
+  ungroup()
+
+dat_GAN <- dat %>% filter(experiment == experiment_, method == 'ExpandGAN' | (method == 'GAN' & alpha1 == 0) )
+dat_GAN <- rbind(dat_GAN, dat %>% 
+                   filter(experiment == experiment_, method == 'GAN' & alpha1 == 1) %>% 
+                   distinct(auc_mean, auc_sd, .keep_all = TRUE) %>% 
+                   ungroup())
+
+dat_graph <- rbind(dat_notGAN, dat_GAN)
+
+dat_graph <- dat_graph %>%
+  group_by(alpha1, alpha2, method, class_imbalance, n_control) %>%
+  distinct(auc_mean, auc_sd, .keep_all = TRUE) %>%
+  filter(auc_mean == max(auc_mean)) %>%
+  ungroup()
+
+dat_graph <- dat_graph  %>% select(-class_imbalance, -n_control)
+
+size <- 0.5
+p1 <- ggplot(data = dat_graph)+
+  geom_boxplot(aes(x = method, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5,
+                ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
+                group = interaction(alpha1, alpha2, method), col = method), 
+                fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
+  
+  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
+  
+  scale_y_continuous(limits=c(0,0.5),oob = scales::rescale_none) +
+  
+  ylab('AUC Diff')
+
+print(p1)
+ggsave("Submit/Figure_6.jpeg", device="jpeg")
+
+##stats tests
+dat_graph_stat <- dat_graph  %>%
+  rowid_to_column('id_unique')
+dat_graph_stat$id_unique <- as.character(dat_graph_stat$id_unique)
+
+dat_test <- dat_graph_stat %>%
+  group_by(experiment, method) %>% 
+  arrange(desc(auc_mean)) %>% 
+  slice_head(n=1) %>% 
+  ungroup() %>% 
+  select(-alpha1, -alpha2)
+#dat_test <- dat_test %>% pivot_wider(names_from = experiment, values_from = c(auc_mean, auc_sd))
+
+ind_test <- gtools::combinations(n = nrow(dat_test), r = 2, v = seq(1, nrow(dat_test)))
+
+pvals <- apply(ind_test, 1, function(x){ BSDA::tsum.test( dat_test$auc_mean[x[1]], dat_test$auc_sd[x[1]], 100,
+                                                          dat_test$auc_mean[x[2]], dat_test$auc_sd[x[2]], 100,
+                                                          var.equal = FALSE)$p.value }) #simulation
+stat_test <- pvals %>% p.adjust(method = 'BH')
+
+stat_test <- as.data.frame(ind_test) %>% mutate(adj_p = stat_test, p = pvals) %>% arrange(adj_p) %>%
+  mutate(id1 = dat_test$id_unique[V1], method1 = dat_test$method[V1], 
+         id2 = dat_test$id_unique[V2], method2 = dat_test$method[V2]) %>%
+  select(-V1, -V2) 
+
+stat_test_sig <- stat_test %>% filter(adj_p <= 0.05)
+stat_test_sig
+```
+
+
+##Hyperparameters and Time Summaries
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+
+#setwd("/Users/cusworsj/Documents/GAN_Paper/Code/gitrepo/Microarray/")
+setwd("/Users/cusworsj/Documents/GAN_Paper/Code/gitrepo/Simulation_example/")
+
+dirs <- c(
+  '1a', '1b', '1c',
+  '2a', '2b', '2c',
+  '3a', '3b', '3c',
+  '4a', '4b', '4c',
+  '5a', '5b', '5c',
+  '6a', '6b', '6c',
+  '7a', '7b', '7c',
+  '8a', '8b', '8c',
+  '9a', '9b', '9c'
+  )
+
+##1st tuning loops
+dat_tuningLoop1 <- matrix(ncol = 8, nrow = 0)
+colnames(dat_tuningLoop1) <- c("lr_1", "max_epochs_1", "final_loss", "max_loss", "time_taken", "epoch_final", "final_select", "experiment")
+for(i in seq(1, length(dirs))){
+  dat <- read.csv(paste("./", dirs[i], '/Results/Main_Results/underrep/results_tuning_1_3Retraining.csv', sep=''))
+  dat <- dat %>% select(-1) %>% mutate(experiment = dirs[i], undov = 'under')
+  
+  dat_tuningLoop1 <- dat_tuningLoop1 %>% rbind(dat)
+}
+
+for(i in seq(1, length(dirs))){
+  dat <- read.csv(paste("./", dirs[i], '/Results/Main_Results/overrep/results_tuning_1_3Retraining.csv', sep=''))
+  dat <- dat %>% select(-1) %>% mutate(experiment = dirs[i], undov = 'over')
+  
+  dat_tuningLoop1 <- dat_tuningLoop1 %>% rbind(dat)
+}
+
+dat_tuningLoop1 <- dat_tuningLoop1 %>% tibble() %>%
+                      mutate(lr_1 = as.factor(lr_1), 
+                             time_taken = as.numeric(as.period(ms(time_taken), unit = "sec")),
+                             final_select = as.factor(final_select),
+                             experiment = as.factor(experiment),
+                             undov = as.factor(undov))
+
+##2nd tuning loops
+dat_tuningLoop2 <- matrix(ncol = 8, nrow = 0)
+colnames(dat_tuningLoop2) <- c("lr_2", "max_epochs_1", "final_loss", "max_loss", "time_taken", "epoch_final", "final_select", "experiment")
+for(i in seq(1, length(dirs))){
+  dat <- read.csv(paste("./", dirs[i], '/Results/Main_Results/underrep/results_tuning_2_3Retrainingcsv', sep=''))
+  dat <- dat %>% select(-1) %>% mutate(experiment = dirs[i], undov = 'under')
+  
+  dat_tuningLoop2 <- dat_tuningLoop2 %>% rbind(dat)
+}
+
+for(i in seq(1, length(dirs))){
+  dat <- read.csv(paste("./", dirs[i], '/Results/Main_Results/overrep/results_tuning_2_3Retrainingcsv', sep='')) #ignore file name, as long as in correct dir
+  dat <- dat %>% select(-1) %>% mutate(experiment = dirs[i], undov = 'over')
+  
+  dat_tuningLoop2 <- dat_tuningLoop2 %>% rbind(dat)
+}
+
+time <- dat_tuningLoop2$time_taken %>% str_remove_all(pattern = "\\]|\\[| |'") %>%
+  str_split_fixed(',', n=2)
+
+dat_tuningLoop2 <- dat_tuningLoop2 %>% tibble() %>% add_column(time.1 = time[,1], time.2 = time[,2]) %>%
+  mutate(lr_2 = as.factor(lr_2), 
+         time.1 = as.numeric(as.period(ms(time.1), unit = "sec")),
+         time.2 = as.numeric(as.period(ms(time.2), unit = "sec")),
+         time_taken = time.1 + time.2,
+         final_lr = as.factor(final_lr),
+         experiment = as.factor(experiment),
+         undov = as.factor(undov)) %>%
+  select(-time.1, -time.2)
+
+##Model training loops
+dat_training <- matrix(ncol = 8, nrow = 0)
+colnames(dat_training) <- c("lr_2", "max_epochs_1", "final_loss", "max_loss", "time_taken", "epoch_final", "final_select", "experiment")
+for(i in seq(1, length(dirs))){
+  dat <- read.csv(paste("./", dirs[i], '/Results/Main_Results/underrep/time_training.csv', sep=''))
+  dat <- dat %>% select(-1) %>% mutate(experiment = dirs[i], undov = 'under')
+  
+  dat_training <- dat_training %>% rbind(dat)
+}
+
+for(i in seq(1, length(dirs))){
+  dat <- read.csv(paste("./", dirs[i], '/Results/Main_Results/overrep/time_training.csv', sep='')) #ignore file name, as long as in correct dir
+  dat <- dat %>% select(-1) %>% mutate(experiment = dirs[i], undov = 'over')
+  
+  dat_training <- dat_training %>% rbind(dat)
+}
+
+dat_training <- dat_training %>% mutate(
+  X0 = as.numeric(as.period(ms(X0), unit = "sec")),
+  undov = as.factor(undov)
+) %>%
+  group_by(experiment) %>% 
+  mutate(time = sum(X0)) %>%
+  select(-X0) %>%
+  unique()
+
+##summaries
+summary(dat_tuningLoop1 %>% filter(final_select == 1))
+summary(dat_tuningLoop2 %>% filter(final_lr == 1))
+summary(
+  dat_tuningLoop1 %>% filter(final_select == 1) %>% select(time_taken_1 = time_taken, experiment, undov) %>%
+    merge(
+      dat_tuningLoop2 %>% filter(final_lr == 1) %>% select(time_taken_2 = time_taken, experiment, undov)
+      ) %>%
+  mutate(total_time = time_taken_1 + time_taken_2)
+)
+
+summary(dat_training)
+
+write_csv(dat_training, "summary_telapsed.csv")
+write_csv(dat_tuningLoop1, "summary_tuningLoop1.csv")
+write_csv(dat_tuningLoop2, "summary_tuningLoop2.csv")
+
+```
+
+```{r}
+#dat_training
+mean(dat_training$time)
+```
+

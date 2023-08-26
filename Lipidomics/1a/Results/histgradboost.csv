@@ -1,0 +1,5 @@
+,impute_method,mean_roc_auc,mean_accuracy,sd_roc_auc,hyp
+0,ExpandGAN,0.8931646005509641,0.8959970071081181,0.07535687596060753,"HistGradientBoostingClassifier(learning_rate=1, min_samples_leaf=10)"
+0,GAN,0.9363234618916437,0.9292929292929293,0.036719388032180826,"HistGradientBoostingClassifier(learning_rate=1, min_samples_leaf=10)"
+0,SMOTE,0.9372130394857667,0.9259259259259259,0.019562761620029134,"HistGradientBoostingClassifier(learning_rate=1, min_samples_leaf=50)"
+0,RO,0.9239267676767676,0.9098391320613542,0.015568530715168616,HistGradientBoostingClassifier(min_samples_leaf=50)
