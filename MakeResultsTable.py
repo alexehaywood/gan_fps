@@ -5,7 +5,9 @@ from os import remove
 experiments = {
         "sim": "Simulation_example",
         "microarray": "Microarray",
-        "metabolomics": "Lipidomics"
+        "metabolomics": "Lipidomics",
+        "microarrayLasso": "Microarray_lasso",
+        "metabolomicsLasso": "Lipidomics_lasso",
 }
 methods = ("GAN", "ClassicGAN", "RO", "SMOTE")
 classifiers = ("histgradboost", "svm")
@@ -57,6 +59,7 @@ header = [
         "mean_accuracy",
         "auc_sd",
         "hyp",
+        "expGanMulti",
 ]
 
 csv_name = f"{PATH}/results_merged.csv"
@@ -74,7 +77,7 @@ with open(csv_name,
     for exp_label, exp_dir in experiments.items():
         path_ = f"{PATH}/{exp_dir}"
 
-        if exp_label=="metabolomics":
+        if exp_label.startswith("metabolomics"):
             groups_ = groups_lipid.items()
         else:
             groups_ = groups.items()

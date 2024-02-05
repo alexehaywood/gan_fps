@@ -759,10 +759,19 @@ def classification_metrics(path_dat_train, path_dat_val, generator, path_transfo
     dat_val_x = pd.DataFrame(transformer.transform(dat_val_x))
 
     for i_classifier in range(0,2):
-        results_classification = pd.DataFrame(None,
-            columns=['impute_method', 'mean_roc_auc', 'mean_accuracy', 'sd_roc_auc','hyp'])
+        if expand_size is None:
+            n_iter = range(0, 4)
+            expand_size = [1]
+        else:
+            n_iter = range(0, 3 + len(expand_size))
 
-        summary_text = pd.DataFrame(columns = ['summary', 'pos', 'col'], index = [1, 2, 3, 4])
+
+        results_classification = pd.DataFrame(None,
+            columns=['impute_method', 'mean_roc_auc', 'mean_accuracy',
+                     'sd_roc_auc','hyp', "n_expand"])
+
+        summary_text = pd.DataFrame(columns = ['summary', 'pos', 'col'],
+                                    index = list(n_iter))
         plot = (
             ggplot()
             + labels.xlab('Mean FPR')
@@ -773,51 +782,58 @@ def classification_metrics(path_dat_train, path_dat_val, generator, path_transfo
            )
 
 
-        for i_methods in tqdm(range(0,4)):
-            if generator2 is not None:
-                impute_method = 'ExpandGAN'
-                col = 'm'
-                def impute_dat():
-                    n_impute = sum(dat_y == 1) - sum(dat_y == 0)
-                    n_expand = sum(dat_y == 1)
+        for i_methods in tqdm(n_iter):
+            if i_methods in [0] + list(range(4, 4+len(expand_size)+1)):
+                if generator2 is not None:
+                    if i_methods == 0:
+                        n_expand = expand_size[i_methods]
+                    else:
+                        n_expand = expand_size[i_methods-3]
+                    impute_method = f'ExpandGAN'
+                    col = 'm'
+                    def impute_dat(n_expand):
+                        n_impute = sum(dat_y == 1) - sum(dat_y == 0)
+                        n_expand = round(sum(dat_y == 1) * n_expand)
 
-                    #underrep class
-                    noise_inp = randn(n_impute + n_expand, n_features)
-                    noise_inp = noise_inp.to(device)
-                    to_device(generator, device)
+                        #underrep class
+                        noise_inp = randn(n_impute + n_expand, n_features)
+                        noise_inp = noise_inp.to(device)
+                        to_device(generator, device)
 
-                    dat_impute = generator(noise_inp)
-                    dat_impute = dat_impute.to('cpu')
-                    dat_impute = pd.DataFrame(dat_impute.detach().numpy())
+                        dat_impute = generator(noise_inp)
+                        dat_impute = dat_impute.to('cpu')
+                        dat_impute = pd.DataFrame(dat_impute.detach().numpy())
 
-                    dat_x_imp = pd.concat([dat_x, dat_impute], join = 'inner')
-                    dat_y_imp = np.concatenate([dat_y, [0]*(n_impute+n_expand)])
+                        dat_x_imp = pd.concat([dat_x, dat_impute], join = 'inner')
+                        dat_y_imp = np.concatenate([dat_y, [0]*(n_impute+n_expand)])
 
-                    #overrep class
-                    noise_inp = randn(n_expand, n_features)
-                    noise_inp = noise_inp.to(device)
-                    to_device(generator2, device)
+                        #overrep class
+                        noise_inp = randn(n_expand, n_features)
+                        noise_inp = noise_inp.to(device)
+                        to_device(generator2, device)
 
-                    dat_impute = generator2(noise_inp)
-                    dat_impute = dat_impute.to('cpu')
-                    dat_impute = pd.DataFrame(dat_impute.detach().numpy())
+                        dat_impute = generator2(noise_inp)
+                        dat_impute = dat_impute.to('cpu')
+                        dat_impute = pd.DataFrame(dat_impute.detach().numpy())
 
-                    dat_x_imp = pd.concat([dat_x_imp, dat_impute], join = 'inner')
-                    dat_y_imp = np.concatenate([dat_y_imp, [1]*n_expand])
+                        dat_x_imp = pd.concat([dat_x_imp, dat_impute], join = 'inner')
+                        dat_y_imp = np.concatenate([dat_y_imp, [1]*n_expand])
 
-                    return(dat_x_imp, dat_y_imp)
+                        return(dat_x_imp, dat_y_imp)
 
-                dat_x_imp, dat_y_imp = impute_dat()
+                    dat_x_imp, dat_y_imp = impute_dat(n_expand)
 
+                else:
+                    continue
             else:
-                continue
+                n_expand = None
 
             if i_methods == 1:
                 #GAN
                 impute_method = 'GAN'
                 col = 'b'
 
-                def impute_dat():
+                def impute_dat(*args):
                     n_impute = sum(dat_y == 1) - sum(dat_y == 0)
 
                     noise_inp = randn(n_impute, n_features)
@@ -843,7 +859,7 @@ def classification_metrics(path_dat_train, path_dat_val, generator, path_transfo
                 else:
                     k_neighbors = 5
 
-                    def impute_dat():
+                    def impute_dat(*args):
                         dat_x_imp, dat_y_imp = SMOTE(k_neighbors = k_neighbors).fit_resample(dat_x, dat_y)
                         return(dat_x_imp, dat_y_imp)
 
@@ -853,7 +869,7 @@ def classification_metrics(path_dat_train, path_dat_val, generator, path_transfo
                 impute_method = 'RO'
                 col = 'y'
 
-                def impute_dat():
+                def impute_dat(*args):
                     dat_x_imp, dat_y_imp = RandomOverSampler().fit_resample(dat_x, dat_y)
                     return(dat_x_imp, dat_y_imp)
 
@@ -912,7 +928,7 @@ def classification_metrics(path_dat_train, path_dat_val, generator, path_transfo
                 if i_classifier == 2:
                     model_val = ElasticNet(**searcher.best_params_)
 
-                dat_x_imp, dat_y_imp = impute_dat()
+                dat_x_imp, dat_y_imp = impute_dat(n_expand)
                 model_val = model_val.fit(dat_x_imp, dat_y_imp)
 
                 preds = model_val.predict(dat_val_x)
@@ -928,11 +944,12 @@ def classification_metrics(path_dat_train, path_dat_val, generator, path_transfo
 
             results_entry = pd.DataFrame(np.column_stack(
                 [impute_method, fmean(scores_roc), fmean(scores_acc), stdev(scores_roc),
-                 str(searcher.best_estimator_)],
+                 str(searcher.best_estimator_), n_expand],
                 ),
 
 
-            columns=['impute_method', 'mean_roc_auc', 'mean_accuracy', 'sd_roc_auc', 'hyp'])
+            columns=['impute_method', 'mean_roc_auc', 'mean_accuracy',
+                     'sd_roc_auc', 'hyp', "n_expand"])
             results_classification = pd.concat([results_classification, results_entry], join='inner')
 
             #roc plot info
@@ -947,8 +964,13 @@ def classification_metrics(path_dat_train, path_dat_val, generator, path_transfo
                 })
             plot = plot + geom_line(data = dat_plot, mapping = aes(x = 'mean_fpr', y = 'mean_tpr', color = 'group'), size = 1)
 
-            summary_text.iloc[i_methods, 0] = r"%s (AUC = %0.2f +- %0.2f)" % (impute_method, fmean(scores_roc), stdev(scores_roc))
-            summary_text.iloc[3-i_methods, 1] = i_methods * 0.1
+            if impute_method == "ExpandGAN":
+                impute_method_ = f"ExpandGAN_{n_expand}"
+            else:
+                impute_method_ = impute_method
+            summary_text.iloc[i_methods, 0] = r"%s (AUC = %0.2f +- %0.2f)" %(impute_method_, fmean(scores_roc), stdev(scores_roc))
+            summary_text.iloc[len(n_iter)-(i_methods+1), 1] = i_methods * 0.1
+            #summary_text.iloc[3-i_methods, 1] = i_methods * 0.1
             summary_text.iloc[i_methods, 2] = impute_method
 
 
@@ -956,8 +978,13 @@ def classification_metrics(path_dat_train, path_dat_val, generator, path_transfo
         plot = plot + geom_segment(aes(x = 0, xend = 1, y = 0, yend = 1), colour = 'r', linetype = 'dashed', alpha = 0.8, size = 1)
         plot = plot + labels.ggtitle("Receiver Operating Characteristic: " + classifier) + labs(color = 'Legend') + \
             theme(legend_position = 'right', legend_direction='vertical') + \
-            geom_text(data = summary_text, mapping = aes(label = 'summary', y = tuple(summary_text['pos']),\
-                                                         x = 0.7, color = tuple(summary_text['col'])))
+            geom_text(data = summary_text,
+                      size=9,
+                      mapping = aes(label = 'summary',
+                                    y = tuple(summary_text['pos']),
+                                    x = 0.7,
+                                    color = tuple(summary_text['col'])
+                                    ))
 
         plot.save(f"{PATH}/Results/{classifier}.png")
         results_classification.to_csv(f"{PATH}/Results/{classifier}.csv")

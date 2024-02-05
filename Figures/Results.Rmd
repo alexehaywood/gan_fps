@@ -16,34 +16,49 @@ library(tidyverse)
 library(ggplot2)
 library(patchwork)
 ```
-
+Lasso analysis graphs
 ```{r}
-dat <- read_csv('/Users/cusworsj/Documents/GAN_Paper/Code/gitrepo/results_merged.csv', col_types = 'fffffffdddc')
+dat <- read_csv('/Users/cusworsj/Documents/GAN_Paper/Code/gitrepo/results_merged.csv', col_types = 'fffffffdddcf')
+dat <- dat %>% filter(expGanMulti == 1 | is.na(expGanMulti))
 ```
 
 ```{r}
-dat_notGAN <- dat %>% filter(experiment == 'sim', method == 'SMOTE' | method == 'RO') %>% group_by(method, n_control, class_imbalance) %>% 
-  distinct(auc_mean, auc_sd, .keep_all = TRUE) %>% ungroup()
-dat_GAN <- dat %>% filter(experiment == 'sim', method == 'ExpandGAN' | (method == 'GAN' & alpha1 == 0) )
-dat_GAN <- rbind(dat_GAN, dat %>% filter(experiment == 'sim', method == 'GAN' & alpha1 == 1) %>% distinct(auc_mean, auc_sd, .keep_all = TRUE) %>% ungroup())
+prepGanDat <- function(dat_, experiment_){
+  dat %>%
+    filter(experiment == experiment_ & (method == 'ExpandGAN' | (method == 'GAN')) ) %>%
+    group_by(method, alpha1, alpha2, n_control, class_imbalance) %>%
+    filter(auc_mean == max(auc_mean)) %>%
+    distinct(auc_mean, .keep_all = TRUE) %>%
+    ungroup() %>%
+    group_by(method, n_control, class_imbalance) %>%
+    distinct(auc_mean, auc_sd, .keep_all = TRUE) %>%
+    ungroup()
+}
+prepNotGanDat <- function(dat_, experiment_){
+  dat %>%
+    filter(experiment == experiment_ & (method == 'SMOTE' | method == 'RO')) %>% 
+    group_by(method, n_control, class_imbalance) %>%
+    arrange(desc(auc_mean), .by_group = TRUE) %>%
+    distinct(auc_mean, auc_sd, .keep_all = TRUE) %>%
+    filter(auc_mean == max(auc_mean)) %>%
+    distinct(auc_mean, .keep_all = TRUE) %>%
+    ungroup()
+}
 
+experiment_ <- 'microarrayLasso'
+dat_notGAN <- prepNotGanDat(dat, experiment_)
+dat_GAN <- prepGanDat(dat, experiment_)
 dat_graph <- rbind(dat_notGAN, dat_GAN)
 
-dat_notGAN <- dat %>% filter(experiment == 'microarray', method == 'SMOTE' | method == 'RO' | method == 'ClassicGAN' | method == 'ClassicExpand') %>% group_by(method, n_control, class_imbalance) %>% 
-  distinct(auc_mean, auc_sd, .keep_all = TRUE) %>% ungroup()
-dat_GAN <- dat %>% filter(experiment == 'microarray', method == 'ExpandGAN' | (method == 'GAN' & alpha1 == 0) )
-dat_GAN <- rbind(dat_GAN, dat %>% filter(experiment == 'microarray', method == 'GAN' & alpha1 == 1) %>% distinct(auc_mean, auc_sd, .keep_all = TRUE) %>% ungroup())
-
+experiment_ <- 'metabolomicsLasso'
+dat_notGAN <- prepNotGanDat(dat, experiment_)
+dat_GAN <- prepGanDat(dat, experiment_)
 dat_graph <- rbind(dat_graph, dat_notGAN, dat_GAN)
-dat_graph <- dat_graph %>% 
-  group_by(method, class_imbalance, experiment, n_control, alpha1, alpha2) %>%
-  filter(auc_mean == max(auc_mean))
 ```
 
 ```{r}
-size <- 0.5
-
-p1 <- ggplot(data = dat_graph %>% filter(class_imbalance == 0.4, experiment == 'sim'))+
+plotBar <- function(dat_graph, experiment_, title, size=0.5){
+  ggplot(data = dat_graph) +
   geom_boxplot(aes(x = n_control, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
                    ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
                    group = interaction(n_control, alpha1, alpha2, method), col = method), 
@@ -53,75 +68,79 @@ p1 <- ggplot(data = dat_graph %>% filter(class_imbalance == 0.4, experiment == '
   
   scale_y_continuous(limits=c(0,0.5),oob = scales::rescale_none) +
   
-  ggtitle('class_imbalance = 0.4') +
+  ggtitle(title) +
   ylab('AUC Diff')
+}
 
-p2 <- ggplot(data = dat_graph %>% filter(class_imbalance == 0.5, experiment == 'sim'))+
-  geom_boxplot(aes(x = n_control, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
-                   ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
-                   group = interaction(n_control, alpha1, alpha2, method), col = method), 
-               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
+experiment_ <- "microarrayLasso"
+p1 <- plotBar(dat_graph %>% filter(class_imbalance == 0.4, experiment == experiment_),
+              experiment_,
+              'class_imbalance = 0.4')
+p2 <- plotBar(dat_graph %>% filter(class_imbalance == 0.5, experiment == experiment_),
+              experiment_,
+              'class_imbalance = 0.5')
+p3 <- plotBar(dat_graph %>% filter(class_imbalance == 0.6, experiment == experiment_),
+              experiment_,
+              'class_imbalance = 0.6')
+
+size = 0.5
+experiment_ <- "metabolomicsLasso"
+p4 <- ggplot(data = dat_graph %>% filter(experiment == experiment_))+
+  geom_boxplot(aes(x = method, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5,
+                ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
+                group = interaction(alpha1, alpha2, method), col = method), 
+                fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
   
   geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
   
   scale_y_continuous(limits=c(0,0.5),oob = scales::rescale_none) +
   
-  ggtitle('class_imbalance = 0.5') +
   ylab('AUC Diff')
 
-p3 <- ggplot(data = dat_graph %>% filter(class_imbalance == 0.6, experiment == 'sim'))+
-  geom_boxplot(aes(x = n_control, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
-                   ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
-                   group = interaction(n_control, alpha1, alpha2, method), col = method), 
-               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
-  
-  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
-  
-  scale_y_continuous(limits=c(0,0.5),oob = scales::rescale_none) +
-  
-  ggtitle('class_imbalance = 0.6') +
-  ylab('AUC Diff')
+p1+p2+p3 + guide_area() + plot_layout(ncol = 2, guides = 'collect')
+ggsave("Submit/Figure_7.jpeg", device="jpeg")
+p4
+ggsave("Submit/Figure_8.jpeg", device="jpeg")
+```
 
+Main analysis graphs
+```{r}
+dat <- read_csv('/Users/cusworsj/Documents/GAN_Paper/Code/gitrepo/results_merged.csv', col_types = 'fffffffdddcf')
+dat <- dat %>% filter(expGanMulti == "1.0" | is.na(expGanMulti))
 
+experiment_ <- 'sim'
+dat_notGAN <- prepNotGanDat(dat, experiment_)
+dat_GAN <- prepGanDat(dat, experiment_)
+dat_graph <- rbind(dat_notGAN, dat_GAN)
 
-p4 <- ggplot(data = dat_graph %>% filter(class_imbalance == 0.4, experiment == 'microarray', !(method == 'ClassicExpand'), !(method == 'ClassicGAN') ))+
-  geom_boxplot(aes(x = n_control, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
-                   ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
-                   group = interaction(n_control, alpha1, alpha2, method), col = method), 
-               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
-  
-  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
-  
-  scale_y_continuous(limits=c(-0.1,0.4),oob = scales::rescale_none) +
-  
-  ggtitle('class_imbalance = 0.4') +
-  ylab('AUC Diff')
+experiment_ <- 'microarray'
+dat_notGAN <- prepNotGanDat(dat, experiment_)
+dat_GAN <- prepGanDat(dat, experiment_)
+dat_graph <- rbind(dat_graph, dat_notGAN, dat_GAN)
+```
 
-p5 <- ggplot(data = dat_graph %>% filter(class_imbalance == 0.5, experiment == 'microarray', !(method == 'ClassicExpand'), !(method == 'ClassicGAN')))+
-  geom_boxplot(aes(x = n_control, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
-                   ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
-                   group = interaction(n_control, alpha1, alpha2, method), col = method), 
-               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
-  
-  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
-  
-  scale_y_continuous(limits=c(-0.1,0.4),oob = scales::rescale_none) +
-  
-  ggtitle('class_imbalance = 0.5') +
-  ylab('AUC Diff')
+```{r}
+experiment_ <- "sim"
+p1 <- plotBar(dat_graph %>% filter(class_imbalance == 0.4, experiment == experiment_),
+              experiment_,
+              'class_imbalance = 0.4')
+p2 <- plotBar(dat_graph %>% filter(class_imbalance == 0.5, experiment == experiment_),
+              experiment_,
+              'class_imbalance = 0.5')
+p3 <- plotBar(dat_graph %>% filter(class_imbalance == 0.6, experiment == experiment_),
+              experiment_,
+              'class_imbalance = 0.6')
 
-p6 <- ggplot(data = dat_graph %>% filter(class_imbalance == 0.6, experiment == 'microarray', !(method == 'ClassicExpand'), !(method == 'ClassicGAN')))+
-  geom_boxplot(aes(x = n_control, upper = (auc_mean + auc_sd) - 0.5, lower = (auc_mean - auc_sd) - 0.5, middle = auc_mean-0.5, 
-                   ymax = (auc_mean + auc_sd) - 0.5, ymin = (auc_mean - auc_sd) - 0.5,
-                   group = interaction(n_control, alpha1, alpha2, method), col = method), 
-               fill = 'white', position = position_dodge2(preserve = 'total', padding = 0.15), stat = 'identity', size = size) +
-  
-  geom_hline(yintercept = 0, linetype = 'dashed', col = 'red', alpha = 0.6) +
-  
-  scale_y_continuous(limits=c(-0.1,0.4),oob = scales::rescale_none) +
-  
-  ggtitle('class_imbalance = 0.6') +
-  ylab('AUC Diff')
+experiment_ <- "microarray"
+p4 <- plotBar(dat_graph %>% filter(class_imbalance == 0.4, experiment == experiment_),
+              experiment_,
+              'class_imbalance = 0.4')
+p5 <- plotBar(dat_graph %>% filter(class_imbalance == 0.5, experiment == experiment_),
+              experiment_,
+              'class_imbalance = 0.5')
+p6 <- plotBar(dat_graph %>% filter(class_imbalance == 0.6, experiment == experiment_),
+              experiment_,
+              'class_imbalance = 0.6')
 
 
 p1+p2+p3 + guide_area() + plot_layout(ncol = 2, guides = 'collect')
@@ -171,7 +190,7 @@ x <- dat_table %>%
 
 x
 gtsave(x, "Submit/Supp_Table_1.html", inline_css=TRUE) 
-webshot::webshot('Submit/Supp_Table_1.html', 'Supp_Table_1.png', delay = 0.5)
+webshot::webshot('Submit/Supp_Table_1.html', 'Submit/Supp_Table_1.png', delay = 0.5)
 ```
 
 
@@ -307,8 +326,8 @@ ggsave("Submit/Figure_5.jpeg", device="jpeg")
 2 sets of stat tests, microarray and simulation
 Both tests done on the best combo of alphas for each group (determined by highest auroc)
 ```{r}
-experiments <- c("sim", "microarray")
-experiment_ <- experiments[2]
+experiments <- c("sim", "microarray", "metabolomicsLasso", "microarrayLasso")
+experiment_ <- experiments[4]
 
 dat_graph_stat <- dat_graph  %>%rowid_to_column('id_unique')
 dat_graph_stat$id_unique <- as.character(dat_graph_stat$id_unique)
@@ -334,20 +353,31 @@ stat_test <- as.data.frame(ind_test) %>% mutate(adj_p = stat_test, p = pvals) %>
   mutate(id1 = dat_test$id_unique[V1], method1 = dat_test$method[V1], n_control1 = dat_test$n_control[V1], class_imb1 = dat_test$class_imbalance[V1], 
          id2 = dat_test$id_unique[V2], method2 = dat_test$method[V2], n_control2 = dat_test$n_control[V2], class_imb2 = dat_test$class_imbalance[V2])
 
+stat_test = stat_test %>% 
+  left_join(dat_test %>% select(auc_mean, id_unique), by=join_by(id1 == id_unique), multiple="all") %>%
+  rename(auc_mean_1 = auc_mean) %>%
+  left_join(dat_test %>% select(auc_mean, id_unique), by=join_by(id2 == id_unique), multiple="all") %>%
+  rename(auc_mean_2 = auc_mean) %>%
+  mutate(auc_diff = auc_mean_1 - auc_mean_2)
+  
+stat_test %>% filter(adj_p <= 0.05)
 ```
 
 ```{r}
 methods <- c('GAN')
 not_methods <- c("ExpandGAN")
-stat_test %>% filter((method1 %in% methods | method2 %in% methods)) %>% filter(!(method1 %in% not_methods | method2 %in% not_methods)) %>%
-  filter(n_control1 == n_control2 & class_imb1 == class_imb2) %>% filter(adj_p <= 0.05) %>% select(-id1, -V1, -V2, -id2) %>%
-  arrange(desc(n_control1)) %>% filter(n_control1 == 120) 
+#not_methods <- c("SMOTE", "RO")
+x = stat_test %>% filter((method1 %in% methods | method2 %in% methods)) %>% filter(!(method1 %in% not_methods | method2 %in% not_methods)) %>%
+  filter(n_control1 == n_control2 & class_imb1 == class_imb2) %>% filter(adj_p <= 0.05) %>% select(-id1, -V1, -V2, -id2, -auc_mean_1, -auc_mean_2) %>%
+  arrange(desc(n_control1)) %>% filter(n_control1 %in% c(40, 80, 120) )
+print(x)
+print(mean((x %>% filter(auc_diff>=0) %>% select(auc_diff))[,1]))
 ```
 
 ```{r}
 ##############Input
-class_imb <- 0.4
-n_control_q <- 10
+class_imb <- 0.6
+n_control_q <- 120
 methods <- c('GAN', 'ClassicGAN', 'RO', 'SMOTE')
 ##############
 
@@ -398,7 +428,8 @@ library(ggplot2)
 
 experiment_ <- "metabolomics"
 
-dat <- read_csv('/Users/cusworsj/Documents/GAN_Paper/Code/gitrepo/results_merged.csv', col_types = 'fffffffdddc')
+dat <- read_csv('/Users/cusworsj/Documents/GAN_Paper/Code/gitrepo/results_merged.csv', col_types = 'fffffffdddcf')
+dat <- dat %>% filter(expGanMulti == "1.0" | is.na(expGanMulti))
 summary(dat)
 
 dat_notGAN <- dat %>% 

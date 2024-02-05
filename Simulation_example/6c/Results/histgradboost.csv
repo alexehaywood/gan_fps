@@ -1,5 +1,8 @@
-,impute_method,mean_roc_auc,mean_accuracy,sd_roc_auc,hyp
-0,ExpandGAN,0.822178137428353,0.8179220779220779,0.036912082300227744,HistGradientBoostingClassifier(min_samples_leaf=50)
-0,GAN,0.7780708290846341,0.7411111111111112,0.02735726971559276,"HistGradientBoostingClassifier(learning_rate=1, min_samples_leaf=10)"
-0,SMOTE,0.7254181882093874,0.7377200577200578,0.005212082858159618,HistGradientBoostingClassifier(min_samples_leaf=75)
-0,RO,0.696108518315162,0.6994083694083694,0.007976456112369159,HistGradientBoostingClassifier(min_samples_leaf=50)
+,impute_method,mean_roc_auc,mean_accuracy,sd_roc_auc,hyp,n_expand
+0,ExpandGAN,0.7971729082600524,0.7750505050505051,0.04520148094663954,HistGradientBoostingClassifier(min_samples_leaf=25),0.25
+0,GAN,0.816740710237259,0.7898124098124099,0.026353972953563416,"HistGradientBoostingClassifier(learning_rate=1, min_samples_leaf=25)",
+0,SMOTE,0.7570348654796455,0.7704617604617605,0.019596185556670143,"HistGradientBoostingClassifier(learning_rate=1, min_samples_leaf=75)",
+0,RO,0.752582628121886,0.7657142857142857,0.01856989276922409,"HistGradientBoostingClassifier(learning_rate=1, min_samples_leaf=75)",
+0,ExpandGAN,0.7631613445353739,0.742034632034632,0.04523320753913131,HistGradientBoostingClassifier(min_samples_leaf=10),0.5
+0,ExpandGAN,0.8363669772211618,0.8286724386724387,0.03659219255477971,HistGradientBoostingClassifier(min_samples_leaf=75),0.75
+0,ExpandGAN,0.8280660356803583,0.8224963924963925,0.03804910130180567,HistGradientBoostingClassifier(min_samples_leaf=75),1.0

@@ -1,9 +1,9 @@
 import yaml
 import polars as pl
 
-file_micro = "Microarray_config.yml"
-file_lipid = "Lipidomics_config.yml"
-file_sim = "Simulation_config.yml"
+file_micro = "configs/Microarray_config.yml"
+file_lipid = "configs/Lipidomics_config.yml"
+file_sim = "configs/Simulation_config.yml"
 
 dict_config = {}
 

@@ -15,8 +15,11 @@ from plotnine import ggplot, aes, geom_line, geom_vline, labels, scales
 import joblib
 import yaml
 
-#config_file = "./Microarray_config.yml"
-config_file = "./Lipidomics_config.yml"
+#config_file = "./configs/Microarray_config.yml"
+#config_file = "./configs/Lipidomics_config.yml"
+#config_file = "./configs/MicroarrayLasso_config.yml"
+config_file = "./configs/LipidomicsLasso_config.yml"
+
 with open(config_file, "r") as file:
     config = yaml.safe_load(file)
 
