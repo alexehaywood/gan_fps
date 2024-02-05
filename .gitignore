@@ -1,4 +1,5 @@
 /.DS_Store
 /.Rhistory
 *.7z
-
+ARCHIVE/
+__pycache__/
