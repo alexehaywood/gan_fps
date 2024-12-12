@@ -1,5 +1,5 @@
 from os import chdir
-chdir('/Users/cusworsj/Documents/GAN_Paper/Code/gitrepo')
+chdir('/home/alexe/projects/pink/gan_fps/gan_fps')
 
 from GAN_Tools import get_default_device, to_device, GanComponent, Results, Environment
 from GAN_Tools import classification_metrics
