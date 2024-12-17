@@ -7,13 +7,11 @@ file_sim = "configs/Simulation_config.yml"
 
 dict_config = {}
 
+
 def get_config(file):
-    """
-    """
-    def del_both(config,
-                 key,
-                 a="pretraining",
-                 b="retraining"):
+    """ """
+
+    def del_both(config, key, a="pretraining", b="retraining"):
 
         if key in config[a].keys():
             del config[a][key]
@@ -32,12 +30,15 @@ def get_config(file):
             del config[key_]
             continue
 
-    config["retraining"] = {x:(y[0] if isinstance(y, list) else y) for x, y in config["retraining"].items()}
+    config["retraining"] = {
+        x: (y[0] if isinstance(y, list) else y) for x, y in config["retraining"].items()
+    }
     for key_ in tuple(config.keys()):
         for sub_key_ in tuple(config[key_].keys()):
             if isinstance(config[key_][sub_key_], list):
-                config[key_][sub_key_] = ", ".join([str(x) for x in
-                                                    config[key_][sub_key_]])
+                config[key_][sub_key_] = ", ".join(
+                    [str(x) for x in config[key_][sub_key_]]
+                )
 
     config = del_both(config, "alpha")
     config = del_both(config, "data_prep")
@@ -66,46 +67,30 @@ def get_config(file):
                 ...
     return config
 
+
 dict_config["micro"] = get_config(file_micro)
 dict_config["lipid"] = get_config(file_lipid)
 dict_config["sim"] = get_config(file_sim)
 
+
 def get_df(dict_config, exp, a="pretraining", b="retraining"):
-    dat_pre = (
-            pl.DataFrame(
-                dict_config[exp][a],
-                infer_schema_length = 100,
-            )
-            .select(
-                pl.Series("id", [f"{exp}_pretraining"]),
-                pl.col("*")
-            )
-    )
-    dat_re = (
-            pl.DataFrame(
-                    dict_config[exp][b],
-                    infer_schema_length = 100,
-            )
-            .select(
-                pl.Series("id", [f"{exp}_retraining"]),
-                pl.col("*")
-            )
-    )
-    dat = pl.concat(
-            [dat_pre, dat_re],
-            how="align")
+    dat_pre = pl.DataFrame(
+        dict_config[exp][a],
+        infer_schema_length=100,
+    ).select(pl.Series("id", [f"{exp}_pretraining"]), pl.col("*"))
+    dat_re = pl.DataFrame(
+        dict_config[exp][b],
+        infer_schema_length=100,
+    ).select(pl.Series("id", [f"{exp}_retraining"]), pl.col("*"))
+    dat = pl.concat([dat_pre, dat_re], how="align")
 
     return dat
+
 
 dat_micro = get_df(dict_config, "micro")
 dat_lipid = get_df(dict_config, "lipid")
 dat_sim = get_df(dict_config, "sim")
 
-dat = pl.concat(
-        [dat_micro, dat_lipid, dat_sim],
-        how="align"
-    )
+dat = pl.concat([dat_micro, dat_lipid, dat_sim], how="align")
 
 dat.write_csv("hyp_table.csv")
-
-

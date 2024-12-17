@@ -3,11 +3,11 @@ from os.path import isfile
 from os import remove
 
 experiments = {
-        "sim": "Simulation_example",
-        "microarray": "Microarray",
-        "metabolomics": "Lipidomics",
-        "microarrayLasso": "Microarray_lasso",
-        "metabolomicsLasso": "Lipidomics_lasso",
+    "sim": "Simulation_example",
+    "microarray": "Microarray",
+    "metabolomics": "Lipidomics",
+    "microarrayLasso": "Microarray_lasso",
+    "metabolomicsLasso": "Lipidomics_lasso",
 }
 methods = ("GAN", "ClassicGAN", "RO", "SMOTE")
 classifiers = ("histgradboost", "svm")
@@ -48,18 +48,18 @@ groups_lipid = {
 
 PATH = "/Users/cusworsj/Documents/GAN_Paper/Code/gitrepo"
 header = [
-        "experiment",
-        "classifier",
-        "n_control",
-        "class_imbalance",
-        "alpha1",
-        "alpha2",
-        "method",
-        "auc_mean",
-        "mean_accuracy",
-        "auc_sd",
-        "hyp",
-        "expGanMulti",
+    "experiment",
+    "classifier",
+    "n_control",
+    "class_imbalance",
+    "alpha1",
+    "alpha2",
+    "method",
+    "auc_mean",
+    "mean_accuracy",
+    "auc_sd",
+    "hyp",
+    "expGanMulti",
 ]
 
 csv_name = f"{PATH}/results_merged.csv"
@@ -67,9 +67,7 @@ csv_name = f"{PATH}/results_merged.csv"
 if isfile(csv_name):
     remove(csv_name)
 
-with open(csv_name,
-        "w",
-        newline='') as csv_file:
+with open(csv_name, "w", newline="") as csv_file:
 
     results_merged = writer(csv_file)
     results_merged.writerow(header)
@@ -86,17 +84,15 @@ with open(csv_name,
 
             for classifier_ in classifiers:
                 cols = [
-                        exp_label,
-                        classifier_,
-                        group_dat["n_control"],
-                        group_dat["class_imbalance"],
-                        group_dat["alpha1"],
-                        group_dat["alpha2"],
+                    exp_label,
+                    classifier_,
+                    group_dat["n_control"],
+                    group_dat["class_imbalance"],
+                    group_dat["alpha1"],
+                    group_dat["alpha2"],
                 ]
-                with open(f"{path_group}/{classifier_}.csv",
-                        "r",
-                        newline="") as f:
+                with open(f"{path_group}/{classifier_}.csv", "r", newline="") as f:
                     dat_reader = reader(f)
-                    next(dat_reader) #skip header
+                    next(dat_reader)  # skip header
                     for line in dat_reader:
-                        results_merged.writerow(cols + line[1:]) #skip index col
+                        results_merged.writerow(cols + line[1:])  # skip index col
